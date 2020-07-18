@@ -1,7 +1,7 @@
 #ifndef setVarAfterDelay_h
 #define setVarAfterDelay_h
 #include "scheduled.h"
-//Use new for this?
+
 namespace setVarAfterDelay{
 	class setDecimal 
 	{
@@ -81,8 +81,8 @@ namespace setVarAfterDelay{
 			std::function<void(int)> variableSetter; // The setter to call to set the variable
 			static const long int lengthBeforeTimeout = 500 ; //the time in millis it takes of no activity before the value is accepted 
 			signed int value = 0 ; // The value to be set;
-			uint8_t maxPresses;
-			uint8_t numPresses;
+			uint8_t maxPresses = 1;
+			uint8_t numPresses = 0;
 			template<typename F>
 			
 			setHex(F c_variableSetter, const int p_maxPresses){ //Constructor

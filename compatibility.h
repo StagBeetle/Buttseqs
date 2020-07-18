@@ -17,7 +17,7 @@ namespace std{
 	void __throw_bad_alloc(){ for(;;){} }
 	void __throw_length_error(char const*){ for(;;){} }
 }
-#endif
+
 
 void assertionFailed(const char* file, const int line){
 	Serial.print("Assertion failed on line ");
@@ -40,3 +40,5 @@ void assertionFailed(const char* file, const int line){
 // }
 
 //#define { {assignLastCurlyBrace(__FILE__, __LINE__);
+
+#endif

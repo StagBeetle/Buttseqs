@@ -2,6 +2,8 @@
 #define forMap_h
 namespace forMap{
 	
+	//I think this is simpler to use than the STL alternative, though less efficient
+	
 	template <typename key, typename value, int num>
 	class for_map{
 		private:

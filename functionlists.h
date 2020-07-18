@@ -1,10 +1,19 @@
 //Drawing stuff on the screen
 //A layer above the screen library
 
-//Rework list to not use pointers. It is like this for the SD card lists and the pattern lists which are dynamic. But these lists shoudl just refer to a static array which has its members changed
+//Rework list to not use pointers, if possible
+
 #ifndef functionLists_h
 #define functionLists_h
+
+// #include "debug.h"
+
+// namespace debug{
+
+// extern int getAverageLoopTime();
+// }
 #include "list.h"
+
 namespace list{
 	
 typedef volatile bool* vbp;
@@ -33,6 +42,7 @@ std::vector<liElem*> debugVec =
 {
 	new liElemF<sF<voidvoid>, gF<>>	("Memory Inspect"	, []{modes::switchToMode(modes::memoryInspect, true);}	),
 	new liElemF<sF<voidvoid>, gF<>>	("All Notes Off"	, interface::all::sendAllNotesOff	),
+	new liElemF<sF<voidvoid>, gF<intvoid>>	("Average Sequencer Time"	, []{}	, debug::getAverageLoopTime),
 };
 
 std::vector<liElem*> memoryVec = 
@@ -213,24 +223,24 @@ std::vector<liElem*> processVec =
 };
 
 //type	name	vector	type	, y	, x	, w	, scroll	, maxlines, 	, dataXoffset	, showActive
-listControllerFixed	settings	= {&settingsVec	, listType::numbered	, 0	, 0	, 480	, true	, 16	, 240	, true};
-listControllerFixed	debug	= {&debugVec	, listType::numbered	, 0	, 0	, 480	, true	, 16	, 240	, true};
-listControllerFixed	memory	= {&memoryVec	, listType::numbered	, 260	, 300	, 480	, false	, 16	, 100	, true};
-listControllerFixed	pattUtil	= {&pattUtilVec	, listType::numbered	, 40	, 0	, 480	, false	, 8	, 240	, false};
-listControllerFixed	pattProc	= {&pattProcVec	, listType::numbered	, 80	, 0	, 480	, false	, 8	, 240	, false};
-listControllerFixed	perform	= {&performVec	, listType::numbered	, 0	, 0	, 480	, true	, 8	, 240	, true};
-listControllerFixed	cardView	= {&cardViewVec	, listType::numbered	, 180	, 0	, 480	, true	, 8	, 240	, true};
-listControllerFixed	pattSwit	= {&pattSwitVec	, listType::numbered	, 30	, 180	, 300	, true	, 8	, 240	, false};
-listControllerFixed	editSteps	= {&editStepsVec	, listType::numbered	, 30	, 300	, 200	, false	, 16	, 100	, true};
-listControllerFixed	editPatt	= {&editPattVec	, listType::numbered	, 30	, 0	, 480	, true	, 16	, 240	, true};
-listControllerFixed	copy	= {&copyVec	, listType::numbered	, 80	, 0	, 480	, false	, 8	, 240	, false};
-listControllerFixed	quantise	= {&quantiseVec	, listType::numbered	, 80	, 0	, 480	, false	, 12	, 240	, false};
-listControllerFixed	themeEdit	= {&themeEditVec	, listType::numbered	, 30	, 0	, 180	, false	, 6	, 240	, true};
-listControllerFixed	arrange	= {&arrangeVec	, listType::numbered	, 0	, 280	, 240	, false	, 16	, 160	, false};
-listControllerFixed	MIDIOutput	= {&MIDIOutputVec	, listType::numbered	, 0	, 0	, 0	, false	, 0	, 160	, false};
-listControllerFixed	MIDIInput	= {&MIDIInputVec	, listType::numbered	, 0	, 0	, 0	, false	, 0	, 160	, false};
-listControllerFixed	select	= {&selectVec	, listType::numbered	, 0	, 300	, 180	, false	, 8	, 155	, false};
-listControllerFixed	process	= {&processVec	, listType::numbered	, 30	, 240	, 100	, false	, 8	, 240	, false};
+listControllerFixed	settings	= {&settingsVec	, listType::keyboard	, 0	, 0	, 480	, true	, 16	, 240	, true};
+listControllerFixed	debug	= {&debugVec	, listType::keyboard	, 0	, 0	, 480	, true	, 16	, 240	, true};
+listControllerFixed	memory	= {&memoryVec	, listType::keyboard	, 260	, 300	, 480	, false	, 16	, 100	, true};
+listControllerFixed	pattUtil	= {&pattUtilVec	, listType::keyboard	, 40	, 0	, 480	, false	, 8	, 240	, false};
+listControllerFixed	pattProc	= {&pattProcVec	, listType::keyboard	, 80	, 0	, 480	, false	, 8	, 240	, false};
+listControllerFixed	perform	= {&performVec	, listType::keyboard	, 0	, 0	, 480	, true	, 8	, 240	, true};
+listControllerFixed	cardView	= {&cardViewVec	, listType::keyboard	, 180	, 0	, 480	, true	, 8	, 240	, true};
+listControllerFixed	pattSwit	= {&pattSwitVec	, listType::keyboard	, 30	, 180	, 300	, true	, 8	, 240	, false};
+listControllerFixed	editSteps	= {&editStepsVec	, listType::data	, 30	, 300	, 200	, false	, 16	, 100	, true};
+listControllerFixed	editPatt	= {&editPattVec	, listType::keyboard	, 30	, 0	, 480	, true	, 16	, 240	, true};
+listControllerFixed	copy	= {&copyVec	, listType::keyboard	, 80	, 0	, 480	, false	, 8	, 240	, false};
+listControllerFixed	quantise	= {&quantiseVec	, listType::keyboard	, 80	, 0	, 480	, false	, 12	, 240	, false};
+listControllerFixed	themeEdit	= {&themeEditVec	, listType::keyboard	, 30	, 0	, 180	, false	, 6	, 240	, true};
+listControllerFixed	arrange	= {&arrangeVec	, listType::keyboard	, 0	, 280	, 240	, false	, 16	, 160	, false};
+listControllerFixed	MIDIOutput	= {&MIDIOutputVec	, listType::keyboard	, 0	, 0	, 0	, false	, 0	, 160	, false};
+listControllerFixed	MIDIInput	= {&MIDIInputVec	, listType::keyboard	, 0	, 0	, 0	, false	, 0	, 160	, false};
+listControllerFixed	select	= {&selectVec	, listType::keyboard	, 0	, 300	, 180	, false	, 8	, 155	, false};
+listControllerFixed	process	= {&processVec	, listType::keyboard	, 30	, 240	, 100	, false	, 8	, 240	, false};
 listControllerCard	cardPatts	= {nullptr	, listType::normal	, 0	, 0	, 480	, true	, 8	, 240	, true};
 listControllerPatMem	memPatts	= {nullptr	, listType::fullkeyed	, 30	, 0	, 180	, true	, 8	, 240	, true};
 		

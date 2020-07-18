@@ -262,7 +262,7 @@ namespace clockReceive{
 		timeAtLastClock = timeNow;
 		
 		if(!hasReceivedFirstClock){hasReceivedFirstClock = true; return;}
-		utl::sendSerialInteger('r', interval);
+		//utl::sendSerialInteger('r', interval);
 		tempoBuffer.checkSample(interval);
 		//addSampleToBuffer(interval);
 		

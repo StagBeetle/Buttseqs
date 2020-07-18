@@ -5,14 +5,16 @@
 //#include "Midi.h"	//All that MIDI shit
 #include "clockReceive.h"	//Midi clock receiving - faulty
 
+#include "debug.h"	//debug routines
 
+//Hardware:
+#include "encoder.h"	//Rotary encoders
 
 #include "src/audio.h"	//audio stuff
 #include "src/drumSampler.h"	//drumSampler
 #include "src/monoSynth.h"	//Basic Monosynth
 #include "src/audio2.h"	//audio stuff that applies to all the engines
 
-#include "encoder.h"	//Rotary encoders
 #include "mode.h"	//Declare the modes
 #include "list.h"	//Drawing lists
 #include "notifications.h"	//Popups
@@ -35,7 +37,7 @@
 #include "modeDefinitions.h"	//Define the modes
 #include "screenvars.h"	//Define the screenvars
 #include "midi_handlers.h"	//MIDI handlers
-#include "debug.h"	//Temporary debug routines
+
 
 // jmp_buf env;
 
@@ -61,8 +63,6 @@ void setup(){
 	
 	// updateLEDs = LEDfeedback::updateLEDs;
 	
-	
-	// draw::startup();..draw cool graphics
 	Serial.println("Intialising card...");
 	card::setup();
 	Serial.println("Intialising MIDI and sequencing...");
@@ -121,7 +121,7 @@ Sequencing::trackArray[0].setMIDIPort(1);
 MIDIports::inputs[3].toggleReceiveClock();
 MIDIports::inputs[3].toggleReceiveStartStop();
 
-sequence.priority(64);
+setSequencePriority();
 
 Serial.println("Initialising Sound Functions...");
 
@@ -130,63 +130,22 @@ monoSynth::setup();
 drumSampler::setup();
 
 Serial.println("Ready");
+draw::startup();//draw cool graphics
 
 //scheduled::newEvent(scheduled::lOE::listOfEvents::misc, []{modes::switchToMode(modes::settings, true);}, 1000);
 
 }//End setup
 
-// uint8_t cycleNum = 0;
-//long timeSinceLastSequence = 0;
 
 void loop(){
-	
-	audio::sgtl5000_1.volume(audio::usb2.volume());
-	
-	//Time checking:
-	static long int longestTime = 0;
-	static long int longestSeqTime = 0;
-	static long int longestTimeSinceLastSequencer = 0;
-	long int startTime = micros();
-	//Sequencing::checkPlaying();
-	long int endSeqTime = micros();
-	long int seqTime = endSeqTime - startTime;
-	longestSeqTime = (longestSeqTime > seqTime) ? longestSeqTime : seqTime;
-	longestTimeSinceLastSequencer = (longestTimeSinceLastSequencer > Sequencing::getTimeSinceLastSequence()) ? longestTimeSinceLastSequencer : Sequencing::getTimeSinceLastSequence();
-	
-	
-	debug::serialButtonCheck();//Check serial for simulated buttno presses
-	
-	//pythonButtons::checkSerial(); //Simulating button Presses
+	debug::addLoopTimeToAverage();
+	audio::sgtl5000_1.volume(audio::usb2.volume() * interface::volume);
 	buttons::loop(); // Get the data from the buttons
 	encoders::check();
 	scheduled::checkFinishedEvents();
 	MIDIports::readMIDI();
-	//comms:read();
-	long int endTime = micros();
-	long int timePassed = endTime - startTime;
-	longestTime = (longestTime > timePassed) ? longestTime : timePassed;
-	static int timeAtLastSerialSend = 0;
-	if(millis() - timeAtLastSerialSend > 1000){
-		// long averageDuration_tmp;
-		// typecopy(averageDuration_tmp, Sequencing::averageDuration);
-		// Serial.println(averageDuration_tmp);
-		
-		// for(int i = 0; i<10; i++){
-			// long time_tmp;
-			// typecopy(time_tmp, Sequencing::times[i]);
-			// lgc(time_tmp);
-			// lgc(" ");
-		// }
-		
-		timeAtLastSerialSend = millis();
-	}
 	if(Sequencing::slowFunc){
 		Sequencing::slowFunc = false;
-		// Serial.print("!");
-		// Serial.println(Sequencing::slowTime);
 	}
-	
-	//tft.updateScreenAsync(); 
-	
-	//DO BACKUP RUN SEQUENCING HERE
+	scrn::update();
 }//end loop

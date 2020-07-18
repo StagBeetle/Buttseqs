@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <stdint.h>
+#include "Arduino.h"
 
 //These are things that are referenced throught the code and stuff that I have had to forward declare because of my lack of splitting .cpp and .h files, which I still think is rubbish.
 
@@ -41,6 +42,11 @@ namespace gc{//global constants
 	const int numberOfMIDIOuts = 5;
 	
 	const int numberOfEncoders = 4;
+	
+	//This is for the lists and is most likely applicable elsewhere
+	const int W = 0;
+	const int B = 1;
+	static const uint8_t keyColours[12] = {W,B,W,B,W,W,B,W,B,W,B,W};// colours of the notes ascending
 };
 
 namespace patMem{
@@ -94,12 +100,12 @@ namespace buttons{
 	}
 namespace LEDfeedback{
 	class LEDSet;
-	LEDSet& getLEDSet(buttons::keySet::ks);
-	void showMode(LEDSet&);
-	void showExtras(LEDSet&);
-	void updateLEDs();
-	void stepChaser(LEDSet&);
-	void clearAll();
+	extern LEDSet& getLEDSet(buttons::keySet::ks);
+	extern void showMode(LEDSet&);
+	extern void showExtras(LEDSet&);
+	extern void updateLEDs();
+	extern void stepChaser(LEDSet&);
+	extern void clearAll();
 }
 namespace scrn{
 	// extern const int width;
@@ -114,8 +120,8 @@ namespace scrn{
 		// };};
 		// uint16_t getThemeColour(td::themeDescriptor index);
 		// }
-	void blankScreen();
-	void setScreenLock(bool);
+	extern void blankScreen();
+	extern void setScreenLock(bool);
 	}
 namespace modes{
 	class mode;
@@ -123,9 +129,18 @@ namespace modes{
 	// mode& getActiveMode()
 	// void switchToMode(mode newMode, const bool fixed);
 	// const char* getModeString();
-	}
+	enum class dialogType{
+		none = 0	,
+		error	,
+		modal	,
+		modalNum	,
+	};
+	
+	extern void setDialog(const dialogType type);//Has an error or a modal popped up
+	extern void clearDialog();//Has an error or a modal popped up
+}
 namespace modal{
-	void clearModalFunctionPointers();
+	extern void clearModalFunctionPointers();
 }
 namespace list{
 	class liElem;
@@ -135,28 +150,26 @@ namespace list{
 	class listControllerFixed;
 	
 	extern list::listControllerFixed editPatt;
-	void setActiveList(listController*);
+	extern void setActiveList(listController*);
 	enum settingsNames{
 		editPriority = 0,
 		advanceSteps,
 		end,
 		};
 	 
-	void doFunction(const modes::mode theMode, const uint8_t button);
-	void drawList();
-	void moveList(const modes::mode theMode, const int dir);
-	
-	//void setHeldSetter(liElem*);
-	void clearHeldSetter();
-	void useHeldSetter(const int button);
-	bool isHeldSetter();
+	extern void doFunction(const modes::mode theMode, const uint8_t button);
+	extern void drawList();
+	extern void moveList(const modes::mode theMode, const int dir);
+	extern void clearHeldSetter();
+	extern void useHeldSetter(const int button);
+	extern bool isHeldSetter();
 	}
 namespace Sequencing{
 	class track;
 	extern long long getTimeSinceLastSequence();
 	std::vector<list::liElem*>* showPatternsInMemory(uint16_t* offset, uint16_t* previousPatternInList, const uint16_t limit);
-	patMem::pattern_t getActivePattern();
-	volatile track& getTrack(const int trackNum);
+	extern patMem::pattern_t getActivePattern();
+	extern volatile track& getTrack(const int trackNum);
 	extern void setTempo(const double newTempo);
 	const int maxTracks = 16;
 	const int processesPerTrack = 16;
@@ -164,31 +177,32 @@ namespace Sequencing{
 	
 	}
 namespace draw{
-	void eventList();
-	void drawPianoRoll(bool);
-	void drawMode();
-	void updateScreen();
-	void drawPianoRollChaser();
-	void drawPianoRollSteps();
-	void editColoursVars();
-	void editColours();
-	void muteTracks();
-	void muteNotes();
-	void mute();
-	void tempo();
-	void arrangeTracks();
-	void arrangeDetails();
-	void arrangeChaser();
-	void routingMatrix();
-	void viewBar();
-	void transpose();
-	void modeList();
-	void selection();
-	void selectionVars();
-	void selectionBorders();
-	void process();
-	void processSelection();
-	void keyIcon(const int x, const int y, const buttons::keySet::ks k);
+	extern void eventList();
+	extern void drawPianoRoll(bool);
+	extern void drawMode();
+	extern void updateScreen();
+	extern void drawPianoRollChaser();
+	extern void drawPianoRollSteps();
+	extern void editColoursVars();
+	extern void editColours();
+	extern void muteTracks();
+	extern void muteNotes();
+	extern void mute();
+	extern void tempo();
+	extern void arrangeTracks();
+	extern void arrangeDetails();
+	extern void arrangeChaser();
+	extern void routingMatrix();
+	extern void viewBar();
+	extern void transpose();
+	extern void modeList();
+	extern void selection();
+	extern void selectionVars();
+	extern void selectionBorders();
+	extern void process();
+	extern void processSelection();
+	extern void recordIcon();
+	extern void buttons(const int x, const int y, const buttons::keySet::ks setToHighlight, const int scale = 1);
 	namespace memoryUsageConstants{
 		extern const int blockHeight; 
 		extern const int blockWidth; 
@@ -196,7 +210,7 @@ namespace draw{
 	}
 }
 namespace card{
-	const extern uint16_t maxDirectoryLength = 256;
+	const uint16_t maxDirectoryLength = 256;
 	extern std::vector<list::liElem*>* listFiles(const uint16_t offset, const uint16_t limit, char* firstName, uint16_t &numberOfPatterns);
 }
 namespace interface{
@@ -206,14 +220,13 @@ namespace interface{
 	extern bool isRecording();
 	
 	namespace record{
-		extern const int maxRecordingNotes = 16;
-		extern patMem::notePos noteBuffer[maxRecordingNotes];
 		extern void startNote(const int);
 		extern void endNote(const int);
 	}
 	
 	namespace settings{
-		unsigned int buttonHoldDelay = 250;
+		extern unsigned int buttonHoldDelay;
+		extern unsigned int doubleClickSpeed;
 		extern bool useSharpNotes;
 		extern bool useFancyLEDChaser;
 		extern bool pianoRollFollowPlay;
@@ -221,11 +234,11 @@ namespace interface{
 	}
 	namespace pattUtils{
 		//void changeLoadNumber(const int8_t num);
-		char currentLoadPatternName[card::maxDirectoryLength+1] = {0};
+		extern char currentLoadPatternName[card::maxDirectoryLength+1];
 	}
 	
 	namespace pattSwitch{
-		uint16_t selectedPattern = 0;
+		extern uint16_t selectedPattern;
 	}
 	namespace arrange{
 		extern const int numberOfBars;
@@ -235,14 +248,19 @@ namespace interface{
 	namespace all{
 		extern void keyboardOctShift(const int);
 		extern void setTempo(const double);
+		extern void exitError(const int);
+	}
+	namespace modals{
+		extern void doModalFunction(const int);
+		extern void doModalNumFunction(const int);
 	}
 	namespace editStep{
 		extern void setListPositionToLast(const bool redraw = false);
 	}
 }
 namespace notifications{
-	void displayError(uint8_t);
-	void timeoutError(); 
+	extern void displayError(uint8_t);
+	extern void timeoutError(); 
 }
 namespace arrangement{
 	extern const uint16_t arrangeBlockSize;
@@ -250,31 +268,19 @@ namespace arrangement{
 namespace functionDescriptions{
 	extern void displayDescriptions();
 }
-// namespace audio{
-	// class audioUnit;
-// }
 
-// void lg(const char* data = "");
-// void lg(char* data);
-// template<typename T>void lg(const T data);
-// void lg(const double data);
-	
-// void lgc(const char* data = "");
-// template<typename T>void lgc(const T data);
-// void lgc(const double data);
-
-
-
-
-//template <typename T = const char*> void lg(const T contents = ""){Serial.println(contents);}
-//template <typename T = const char*> void lgc(const T contents = ""){Serial.print(contents);}
 
 //Logging:
 template <typename T>
 void printDebug(const char* file , int line, T message = "", bool newLine = true) {
-	char* fileName = strrchr(file, '/');
+	const float time = (float)millis() / 1000.0;
+	//char timeString[10] = {0};
+	//sprintf(timeString, "%03f", time);
+	char* fileName = strrchr(file, '\\') + 1;
 	Serial.print(fileName ? fileName : file);
 	Serial.print(line);
+	Serial.print(":");
+	Serial.print(time);
 	Serial.print(":");
 	Serial.print(message);
 	if(newLine){
@@ -286,11 +292,10 @@ void printDebug(const char* file , int line, T message = "", bool newLine = true
 #define lg(message) (printDebug(__FILE__, __LINE__, (message)))
 #define lgc(message) (printDebug(__FILE__, __LINE__, (message), false))
 
-std::function<void(void)> updateLEDs;
-void strcatc(char*, char);
+extern std::function<void(void)> updateLEDs;
+extern void strcatc(char*, char);
 
-IntervalTimer sequence;
-inline void startTimer(){sequence.begin(Sequencing::checkPlaying, 500);}
-inline void stopTimer(){sequence.end();}
-
+extern void startTimer();
+extern void stopTimer();
+extern void setSequencePriority(const int priority = 64);
 #endif

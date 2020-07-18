@@ -30,11 +30,25 @@ namespace draw{
 	}
 
 	void drawMode(){
-		scrn::writeFillRect(0, 0, scrn::width, scrn::topOffset, scrn::getThemeColour(scrn::td::fg));
+		scrn::writeFillRect(0, 0, scrn::width, scrn::topOffset, scrn::getThemeColour(scrn::td::fg));//Draw top bar
 		scrn::setTextColor(scrn::getThemeColour(scrn::td::bg));
-		scrn::write(5, 0, modes::getModeString());
-		scrn::track.update(interface::editTrack);
+		scrn::write(30, 0, modes::getModeString());
+		//scrn::track.update(interface::editTrack);
 		draw::tempo();
+	}
+	
+	void recordIcon(){
+		//static bool wasRecordingLastRun = false;
+		static bool hollowToggle = true;
+		bool isRecordingNow = interface::isRecording();
+		scrn::writeFillRect(0, 0, 20, 20, scrn::getThemeColour(scrn::td::fg));
+		if(isRecordingNow){
+			const int tempo = Sequencing::getTempo();
+			auto drawFunc = hollowToggle ? scrn::drawCircle : scrn::drawFillCircle;
+			drawFunc(10, 10, 8, scrn::getThemeColour(scrn::td::highlight));
+			hollowToggle = !hollowToggle;
+			scheduled::newEvent(scheduled::lOE::recordIcon, recordIcon, static_cast<int>(60000.0 / tempo));//Draw the record icon with the beats, though unsynced.
+		}
 	}
 
 	void updateScreen(){
@@ -42,8 +56,8 @@ namespace draw{
 	}
 
 	namespace pianoRollConstants{
-		static const uint8_t W = 3;
-		static const uint8_t B = 2;
+		static const uint8_t W = 2;
+		static const uint8_t B = 1;
 		static const uint8_t colours[12] = {W,B,W,B,W,W,B,W,B,W,B,W};// colours of the notes ascending
 		static const uint8_t noteChannelWidth = 5;
 		static const uint8_t noteWidth = noteChannelWidth - 2;
@@ -156,11 +170,11 @@ namespace draw{
 					scrn::writeFillRect(pianoRollXOffset, bottom - i*noteChannelWidth - noteChannelWidth, widthForPianoRoll, noteChannelWidth, scrn::getThemeColour(colours[i%12]));
 					}
 				for (int i = 0; i<numberOfBeats; i++){//Minor gridlines
-					scrn::writeFastVLine(i*stepWidth + pianoRollXOffset, topOffset, heightForPianoRoll, scrn::getThemeColour(scrn::td::acc1));
+					scrn::writeFastVLine(i*stepWidth + pianoRollXOffset, topOffset, heightForPianoRoll, scrn::getThemeColour(scrn::td::fg));
 					}
 				for (int i = 0; i<numberOfBeats/4; i++){//Major gridlines
-					scrn::writeFastVLine(i*stepWidth*4 + pianoRollXOffset,     topOffset, heightForPianoRoll, scrn::getThemeColour(scrn::td::acc1));
-					scrn::writeFastVLine(i*stepWidth*4 + pianoRollXOffset + 1, topOffset, heightForPianoRoll, scrn::getThemeColour(scrn::td::acc1));
+					scrn::writeFastVLine(i*stepWidth*4 + pianoRollXOffset,     topOffset, heightForPianoRoll, scrn::getThemeColour(scrn::td::fg));
+					scrn::writeFastVLine(i*stepWidth*4 + pianoRollXOffset + 1, topOffset, heightForPianoRoll, scrn::getThemeColour(scrn::td::fg));
 					}
 			}
 			for (int i = 0; i<numberOfNotes; i++){//Thin note channels to clear
@@ -422,7 +436,7 @@ namespace draw{
 		scrn::writeFillRect(0, yPos - scrn::font::getTextHeight(), scrn::width, scrn::height , scrn::getThemeColour(scrn::td::bg));
 		scrn::setTextColor(scrn::getThemeColour(scrn::td::text));
 		scrn::writeFillRect(margin - bgEdge, yPos - bgEdge, boxWidth + bgEdge*2 , boxHeight + bgEdge*2, scrn::getThemeColour(scrn::td::fg));
-		for(int i=0; i<scrn::td::none; i++){
+		for(int i=0; i<scrn::td::max; i++){
 			const int xPos = margin + (margin + boxWidth) * i;
 			scrn::writeFillRect(xPos, yPos, boxWidth, boxHeight, scrn::getThemeColour(i));
 			scrn::write(xPos, yPos - scrn::font::getTextHeight(), scrn::colourDescriptors[i]);
@@ -1076,7 +1090,7 @@ namespace draw{
 			const int x = 0	+ (i % 4) * tabWidth;
 			const int y = scrn::topOffset + tabHeight + 20	+ (i / 4) * tabHeight;
 			scrn::writeFillRect(x, y, tabWidth, tabHeight, scrn::getThemeColour(scrn::td::acc2));
-			scrn::write(x + 10, y, modes::listOfModes[ID]->getName());
+			scrn::write(x + 10, y, modes::getModeByID(ID).getName());
 		}
 	}
 	
@@ -1108,12 +1122,29 @@ namespace draw{
 		for(auto& proc : process::processes){
 			const int x = (counter % 4) * boxWidth + xOffset;
 			const int y = (counter / 4) * lineHeight + yOffset;
-			lgc(x);
-			lgc(" ");
-			lg(y);
+			// lgc(x);
+			// lgc(" ");
+			// lg(y);
 			scrn::write(x, y, proc.getName());
 			counter++;
 		}
+	}
+	
+	void buttons(const int x, const int y, const buttons::keySet::ks setToHighlight, const int scale){//Draw a digital representation of the buttons on the screen
+		using namespace scrn;
+		using namespace buttons;
+		
+		writeFillRect(x	, y+8*scale	,  16*scale	, 1*scale	,setToHighlight == keySet::step	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x	, y+6*scale	,  15*scale	, 1*scale	,setToHighlight == keySet::note	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x+1*scale	, y+5*scale	,  2*scale	, 1*scale	,setToHighlight == keySet::note	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x+4*scale	, y+5*scale	,  3*scale	, 1*scale	,setToHighlight == keySet::note	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x+8*scale	, y+5*scale	,  2*scale	, 1*scale	,setToHighlight == keySet::note	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x+11*scale	, y+5*scale	,  3*scale	, 1*scale	,setToHighlight == keySet::note	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x+17*scale	, y+5*scale	,  1*scale	, 3*scale	,setToHighlight == keySet::vertical	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x+16*scale	, y+6*scale	,  2*scale	, 1*scale	,setToHighlight == keySet::horizontal	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x+7*scale	, y	,  4*scale	, 4*scale	,setToHighlight == keySet::data	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x+12*scale	, y	,  4*scale	, 4*scale	,setToHighlight == keySet::mode	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+		writeFillRect(x+17*scale	, y	,  1*scale	, 4*scale	,setToHighlight == keySet::extra	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
 	}
 
 	//void drawEdit

@@ -1,0 +1,27 @@
+L:\Electronics\Projects\Sequencer\code\sequencer\screen.h:111:13: warning: Either the condition 'editColourDescriptor<td::max' is redundant or the array 'colours[6]' is accessed at index 6, which is out of bounds. [arrayIndexOutOfBoundsCond]
+     colours[editColourDescriptor].editColour(editColourChannel, value);
+            ^
+L:\Electronics\Projects\Sequencer\code\sequencer\screen.h:110:29: note: Assuming that condition 'editColourDescriptor<td::max' is not redundant
+    if(editColourDescriptor < td::max){
+                            ^
+L:\Electronics\Projects\Sequencer\code\sequencer\screen.h:111:13: note: Array index out of bounds
+     colours[editColourDescriptor].editColour(editColourChannel, value);
+            ^
+L:\Electronics\Projects\Sequencer\code\sequencer\setVarAfterDelay.h:88:4: warning: Member variable 'setHex::numPresses' is not initialized in the constructor. [uninitMemberVar]
+   setHex(F c_variableSetter, const int p_maxPresses){ //Constructor
+   ^
+L:\Electronics\Projects\Sequencer\code\sequencer\screen.h:103:20: warning: Either the condition 'val<td::max' is redundant or the array 'colours[6]' is accessed at index 6, which is out of bounds. [arrayIndexOutOfBoundsCond]
+     return colours[val];
+                   ^
+L:\Electronics\Projects\Sequencer\code\sequencer\screen.h:102:12: note: Assuming that condition 'val<td::max' is not redundant
+    if(val < td::max){
+           ^
+L:\Electronics\Projects\Sequencer\code\sequencer\screen.h:103:20: note: Array index out of bounds
+     return colours[val];
+                   ^
+L:\Electronics\Projects\Sequencer\code\sequencer\screen.h:105:20: error: Array 'colours[6]' accessed at index 6, which is out of bounds. [arrayIndexOutOfBounds]
+     return colours[td::none];
+                   ^
+L:\Electronics\Projects\Sequencer\code\sequencer\mode.cpp:20:9: warning: Member variable 'mode::updateLEDs' is not initialized in the constructor. [uninitMemberVar]
+  mode::mode(const char* c_name, const modeType c_type,
+        ^

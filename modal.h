@@ -3,6 +3,7 @@
 #define modal_h
 #include "Utility.h"
 #include "screen.h"  
+#include "mode.h"  
 
 namespace modal{
 	const int maxOptions = 16;
@@ -17,7 +18,7 @@ namespace modal{
 		}
 	void endModal(){
 		clearModalFunctionPointers();
-		modes::reset();
+		modes::clearDialog();
 		}
 	void doFunction(const int num){
 		if (num < numberOfUsedOptions){//If the button pressed is within bounds
@@ -47,9 +48,9 @@ namespace modal{
 				const std::function<void(void)> callback;
 				const char* displayString; //I think this char references flash memory
 		};
-	void initiateModal(const char* choice, std::vector<option> options, modes::mode& returnTo){
+	void initiateModal(const char* choice, std::vector<option> options){
 		clearModalFunctionPointers();
-		modes::switchToMode(modes::modal, false);
+		modes::setDialog(modes::dialogType::modal);
 		//lastMode = &returnTo;
 		scrn::write(5, 5, choice);
 		const int numberOfOptions = options.size(); //Do a check to ensure this is less than maxOptions
@@ -70,10 +71,10 @@ namespace modal{
 	std::function<void(int)> modalNumFunction;
 	void doNumFunction(const int num){
 		modalNumFunction(num);
-		modes::reset();
+		modes::clearDialog();
 		}
 	void initiateNumberModal(const char* choice, std::function<void(int)> theFunction){
-		modes::switchToMode(modes::modalNum, false);
+		modes::setDialog(modes::dialogType::modalNum);
 		//lastMode = &returnTo;
 		modalNumFunction = theFunction;
 		notifications::notification n = {choice};

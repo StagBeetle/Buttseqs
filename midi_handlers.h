@@ -63,6 +63,7 @@ namespace MIDIhandlers{
 					[relevantTrack]{interface::mute::unmuteTrack(relevantTrack);} ,
 					interface::settings::recordPriorityCutoff
 				);
+				lg("this is bad and should use silenceNotesWhenRecording");
 				break;
 			case notePreviewType::all:
 			default:

@@ -14,12 +14,3 @@
  ****************************************************/
 
 
-#include "SPI.h"
-#include "ILI9488_t3.h"
-
-#define TFT_RST 6//No longer the default 8 because that is used for the Teensy audio board
-#define TFT_DC 9
-#define TFT_CS 10
-
-ILI9488_t3 tft = ILI9488_t3(&SPI, TFT_CS, TFT_DC, TFT_RST);
-//ILI9488_t3 tft = ILI9488_t3(&SPI, 255, 255, 255);

@@ -25,7 +25,7 @@ namespace Sequencing{
 	
 	//Constants:
 	
-	const int noteOffPolyphony = 64; //How many notes can be playing at once per channel
+	const int noteOffPolyphony = 16; //How many notes can be playing at once per channel
 	const uint8_t PPS = 48; // 6 Pulses per Step is Equal to 24 PPQN - what midi clock uses - 48 is LCM of 16 and 6
 	const uint8_t PPSS = PPS / 16; //Pulses per substep
 	const uint8_t MIDIPPS = 6;
@@ -42,6 +42,9 @@ namespace Sequencing{
 	volatile uint8_t midiSyncExternal = 0;
 	
 	bool adjustNoteLengthByShuffle = true;
+	
+	const int maxRecordingNotes = 16;
+	patMem::notePos recordNoteBuffer[maxRecordingNotes];
 	
 	int8_t globalTranspose = 0;
 	//bool isSeqPlaying = false;
@@ -92,6 +95,7 @@ namespace Sequencing{
 			volatile bitset_lite<128> mutedNotes;
 			volatile process::processStack pStack;
 			volatile uint8_t soundSourceIndex = 0;
+			volatile bool temporaryMute = false; //Mute when new notes are being played when recording.
 		public:
 			static uint8_t channelInc;
 			
@@ -150,6 +154,10 @@ startTimer();
 stopTimer();
 				isMuted = false;
 startTimer();
+			}
+			
+			void setTemporaryMute() volatile {
+				temporaryMute = true;
 			}
 				
 			bool getMuted() volatile const{
@@ -335,6 +343,7 @@ stopTimer();
 					}
 					if(currentStep >= realPatternLength){
 						currentStep = 0;
+						temporaryMute = false; // Reset mute on end of bar
 					}
 					
 					if(currentStep % realStepsPerBar == 0){
@@ -427,11 +436,11 @@ startTimer();
 				bool isPatternMuted = getMuted();
 				for(auto & theNote: notesToPlay){ //For each note at the step
 				
-					if (theNote.isValid()){ //If the note is valid - I think iy should always be valid,?
+					if (theNote.isValid()){ //If the note is valid - I think it should always be valid,?
 						bool noteRemoved = false;
 						if(interface::isRecording() && trackNum == interface::editTrack && interface::isShiftHeld){//Recording notes - will only remove 
-							for(int i = 0; i<interface::record::maxRecordingNotes; i++){
-								notePos np = interface::record::noteBuffer[i];
+							for(int i = 0; i<maxRecordingNotes; i++){
+								notePos np = recordNoteBuffer[i];
 								if(np.isValid() && np.n.getPitch() == theNote.getPitch()){
 									// lg("rem");
 									addOrRemoveNote(theNote, getPlayPosition(), false);
@@ -441,7 +450,7 @@ startTimer();
 							}
 						}
 						
-						if(isNoteMuted(theNote.getPitch()) || isPatternMuted || noteRemoved){continue;}
+						if(isNoteMuted(theNote.getPitch()) || isPatternMuted || noteRemoved || temporaryMute){continue;}
 						
 						theNote.setPitch(theNote.getPitch() + activePattern.getTranspose());
 						int velocityMod = theNote.getAccent() ? activePattern.getAccentVelocity() : activePattern.getVelocity();
@@ -1114,10 +1123,10 @@ startTimer();
 	void beginChaser(){
 		static bool alternator = false;
 		numberOfTimesBeginChaserIsCalled++;
-		scheduled::lOE::listOfEvents type = alternator ? scheduled::lOE::arrangeChaser : scheduled::lOE::arrangeChaser2;
+		//scheduled::lOE::listOfEvents type = alternator ? scheduled::lOE::arrangeChaser : scheduled::lOE::arrangeChaser2; //I think I fixed the error that this solves
 		if(!isSeqPlaying()){return;}
 		scheduled::newEvent(
-			type,
+			scheduled::lOE::arrangeChaser,
 			[]{
 				draw::arrangeChaser();
 				beginChaser();

@@ -52,12 +52,9 @@ class monoSynthUnit : public audioUnit {
 			std::bitset<128> heldCopy;
 			typecopy(heldCopy, heldNotes);
 			
-			Serial.println(heldCopy.count());
-			
 			if(heldCopy.count() == 0){
 				VCA_ADSR.noteOff();
 				VCF_ADSR.noteOff();
-				Serial.println("off");
 			}
 		}
 		std::bitset<128> heldNotes;

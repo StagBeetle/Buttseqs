@@ -5,43 +5,70 @@
 
 namespace MIDIports{
 	
-	const int numberOfInPorts = gc::numberOfMIDIIns;
-	const int numberOfOutPorts = gc::numberOfMIDIOuts;
-	
+const int numberOfInPorts = gc::numberOfMIDIIns;
+const int numberOfOutPorts = gc::numberOfMIDIOuts;
 	
 #if defined(__MK66FX1M0__) //Teensy 3.6
-	
-	midi::MidiInterface<HardwareSerial> outPorts[] = {
-		{Serial1},
-		{Serial3},
-		{Serial4},
-		{Serial5},
-	};
-	
-	midi::MidiInterface<HardwareSerial> inPorts[] = {
-		{Serial1},
-		{Serial3},
-		{Serial4},
-		{Serial5},
-	};
-	
+	HardwareSerial serialPort0 = {Serial1};
+	HardwareSerial serialPort1 = {Serial3}; 
+	HardwareSerial serialPort2 = {Serial4};
+	HardwareSerial serialPort3 = {Serial5};
 #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x
-	
-	midi::MidiInterface<HardwareSerial> outPorts[] = {
-		{Serial1},
-		{Serial4},
-		{Serial6},
-		{Serial7},
-	};
-	
-	midi::MidiInterface<HardwareSerial> inPorts[] = {
-		{Serial1},
-		{Serial4},
-		{Serial6},
-		{Serial7},
-	};
-	
+	HardwareSerial serialPort0 = {Serial1};
+	HardwareSerial serialPort1 = {Serial4}; 
+	HardwareSerial serialPort2 = {Serial6};
+	HardwareSerial serialPort3 = {Serial7};
 #endif
+	
+MIDI_CREATE_INSTANCE(HardwareSerial, serialPort0, port0);
+MIDI_CREATE_INSTANCE(HardwareSerial, serialPort1, port1);
+MIDI_CREATE_INSTANCE(HardwareSerial, serialPort2, port2);
+MIDI_CREATE_INSTANCE(HardwareSerial, serialPort3, port3);
+
+//midi::MidiInterface<midi::SerialMIDI<HardwareSerial>> test = {serialPort0};
+
+decltype(port0) outPorts[] = {port0, port1, port2, port3};
+decltype(port0) inPorts[] = {port0, port1, port2, port3};
+
+// midi::MidiInterface<midi::SerialMIDI<HardwareSerial> > outPorts[] = {port0, port1, port2, port3};
+// midi::MidiInterface<midi::SerialMIDI<HardwareSerial> > inPorts[] = {port0, port1, port2, port3};
+
+// #if defined(__MK66FX1M0__) //Teensy 3.6
+	
+	// midi::MidiInterface<HardwareSerial> outPorts[] = {
+		// {Serial1},
+		// {Serial3},
+		// {Serial4},
+		// {Serial5},
+	// };
+	
+	// midi::MidiInterface<HardwareSerial> inPorts[] = {
+		// {Serial1},
+		// {Serial3},
+		// {Serial4},
+		// {Serial5},
+	// };
+	
+// #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x
+	
+	// //midi::MidiInterface<HardwareSerial> outPorts[] = {
+	// midi::MidiInterface<HardwareSerial> outPorts[] = {
+		// {Serial1},
+		// {Serial4},
+		// {Serial6},
+		// {Serial7},
+	// };
+	
+	// //midi::MidiInterface<HardwareSerial> inPorts[] = {
+	// midi::MidiInterface<HardwareSerial> inPorts[] = {
+		// {Serial1},
+		// {Serial4},
+		// {Serial6},
+		// {Serial7},
+	// };
+	
+// #endif
+    
 //Don't need an else case.
 	
 	void setup(){

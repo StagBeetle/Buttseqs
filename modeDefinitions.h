@@ -28,7 +28,7 @@ mode editNotes = {"Edit Notes", modeType::creation, true, false, true, true, fal
 	},
 	{
 		{k::step,	b::release,	interface::editNotes::addNoteOnStep	},
-		{k::step,	b::hold,	interface::editNotes::setViewBarOrEnterSubstep	},
+		{k::step,	b::hold,	interface::editNotes::setSubstepOrEnterBar	},
 		{k::note,	b::press,	interface::editNotes::addNoteOnPitch	},
 		{k::note,	b::release,	interface::editNotes::releaseNote	},
 		{k::horizontal,	b::press,	interface::all::keyboardOctShift	},
@@ -36,8 +36,9 @@ mode editNotes = {"Edit Notes", modeType::creation, true, false, true, true, fal
 	},
 	{
 		nullptr,
-		interface::performance::tempoChangeLarge,
-		interface::performance::tempoChangeSmall,
+		interface::performance::tempoChangeLargeEnc,
+		interface::performance::tempoChangeSmallEnc,
+		interface::all::changeVolume,
 	}
 };
 
@@ -54,7 +55,7 @@ mode editNotes = {"Edit Notes", modeType::creation, true, false, true, true, fal
 	// }, 
 	// {
 		// {k::step,	b::release,	interface::editNotes::addNoteOnStep	},
-		// {k::step,	b::hold,	interface::editNotes::setViewBarOrEnterSubstep	},
+		// {k::step,	b::hold,	interface::editNotes::setSubstepOrEnterBar	},
 		// {k::note,	b::press,	interface::editNotes::addNoteOnPitch	},
 		// {k::note,	b::release,	interface::editNotes::releaseNote	},
 		// {k::horizontal,	b::press,	interface::all::keyboardOctShift	},
@@ -295,40 +296,40 @@ mode rename = {"Rename" , modeType::admin, false, false, true, true, true, nullp
 	},
 	{}
 };
-mode error = {"Error" , modeType::unlisted,  false, true, false, false, true, nullptr, {},
-	[]{
-	},
-	{
-	}, 
-	{
-		{k::step,	b::press,	interface::all::exitError	},
-	},
-	{}
-};
-mode modal = {"Modal" , modeType::unlisted, true, true, false, false, false, nullptr, {},
-	[]{
-	},
-	{
-	}, 
-	{
-		{k::data,	b::press,	interface::modals::doModalFunction	},
-		{k::note,	b::press,	interface::modals::doModalFunction	},
-		{k::step,	b::press,	interface::modals::doModalFunction	},
-	},
-	{}
-};
-mode modalNum = {"ModalNum" , modeType::unlisted, true, true, false, false, false, nullptr, {},
-	[]{
-	},
-	{
-	}, 
-	{
-		{k::data,	b::press,	interface::modals::doModalNumFunction	},
-		{k::note,	b::press,	interface::modals::doModalNumFunction	},
-		{k::step,	b::press,	interface::modals::doModalNumFunction	},
-	},
-	{}
-};
+// mode error = {"Error" , modeType::unlisted,  false, true, false, false, true, nullptr, {},
+	// []{
+	// },
+	// {
+	// }, 
+	// {
+		// {k::step,	b::press,	interface::all::exitError	},
+	// },
+	// {}
+// };
+// mode modal = {"Modal" , modeType::unlisted, true, true, false, false, false, nullptr, {},
+	// []{
+	// },
+	// {
+	// }, 
+	// {
+		// {k::data,	b::press,	interface::modals::doModalFunction	},
+		// {k::note,	b::press,	interface::modals::doModalFunction	},
+		// {k::step,	b::press,	interface::modals::doModalFunction	},
+	// },
+	// {}
+// };
+// mode modalNum = {"ModalNum" , modeType::unlisted, true, true, false, false, false, nullptr, {},
+	// []{
+	// },
+	// {
+	// }, 
+	// {
+		// {k::data,	b::press,	interface::modals::doModalNumFunction	},
+		// {k::note,	b::press,	interface::modals::doModalNumFunction	},
+		// {k::step,	b::press,	interface::modals::doModalNumFunction	},
+	// },
+	// {}
+// };
 mode themeEdit = {"Theme Edit" , modeType::admin, false, false, true, true, false, &list::themeEdit, {}, 
 	[]{
 		interface::colour::updateValueFromTheme();
@@ -485,6 +486,7 @@ mode process = {"Process" , modeType::process, false, false, true, true, false, 
 // };
 mode editCC	= {"editCC"	, modeType::creation, true, false, true, true, false, nullptr, {}, []{}, {}, {}, {}};
 mode chain	= {"chain"	, modeType::live, true, false, true, true, false, nullptr, {}, []{}, {}, {}, {}};
+mode sentinel	= {"sentinel"	, modeType::unlisted, true, false, true, true, false, nullptr, {}, []{}, {}, {}, {}};
 }//End namespace
 #endif
 /*

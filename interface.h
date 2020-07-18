@@ -1,6 +1,7 @@
 //Most of the general functions that are triggered by the keys
 #ifndef interface_h
 #define interface_h
+
 #include <bitset>
 #include "scheduled.h"
 #include "sequencing.h"
@@ -16,8 +17,7 @@ namespace interface{
 	byte editTrack = 0;
 
 	std::bitset<128> editPitches;
-	// std::bitset< 16> editSteps;
-	// std::bitset< 16> editSubsteps;
+
 	int8_t editStepForSubstep = -1;
 	
 	std::bitset<gc::numberOfSubsteps> stepSelection;
@@ -36,50 +36,20 @@ namespace interface{
 		return recording;
 	}
 	
-	// const int somesize = 52;
-	// const int rands [somesize] = {0,1,1,1,1,0,0,1,0,1,1,0,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,0,0,0,1,0,0,0,0,0,0,1,0,1,0,1,1,0,1,0,0,1,0,1,1};
-
-	
-	// inline bool rando(){
-		// static int counter = 0;
-		// counter++;
-		// return rands[counter % somesize];
-	// }
-	
-	// void bitSetTest(){
-		// const long long largeNumber = 131072;
-		// long long counter = 0;
-		// int timeAtStart = micros();
-		// std::bitset<largeNumber> testSet;
-		
-		// for(int i = 0; i<largeNumber; i++){
-			// testSet.set(i, rando());
-		// }
-		// int timeAfterFirstLoop = micros();
-		// for(int i = 0; i<largeNumber; i++){
-			// if(testSet.test(i)){
-				// counter ++;
-			// }
-		// }
-		// int timeAtEnd = micros();
-		// lg(timeAtStart);
-		// lg(timeAfterFirstLoop);
-		// lg(timeAtEnd);
-		// lg(timeAfterFirstLoop - timeAtStart);
-		// lg();
-	// }
+	float volume = 1.0;
 	
 namespace settings{
 	editPriorityModes editPriority = editPriorityModes::stepFirst;
 	int advanceSteps = 16;
 	bool notePreview = false;
-	unsigned int doubleClickSpeed = 400; //milliseconds
-	bool useSharpNotes = true;
-	bool useFancyLEDChaser = false;
-	bool pianoRollFollowPlay = false;
-	bool editSubstepsAlso = false; //Whether the normal editStep mode should edit every substep. Different from subsetpEdit mode
-	bool jumpToActivePattern = true;
-	unsigned int recordPriorityCutoff = 1000;
+	unsigned int doubleClickSpeed = 250; //milliseconds
+	bool useSharpNotes = true; //Whether to use sharps or flats
+	bool useFancyLEDChaser = false; //Rubbish feature
+	bool pianoRollFollowPlay = false; //Should the piano roll on screen follow the active bar
+	bool editSubstepsAlso = false; //Whether the normal editStep mode should edit every substep.
+	bool jumpToActivePattern = true; //Automatically go to the active pattern in the pattern menu
+	unsigned int recordPriorityCutoff = 1000; //Used but not well.
+	bool silenceNotesWhenRecording = true; //Should playing the keyboard silence the playing pattern
 	bool recordOnlyFromExternal = false;
 	uint8_t screenBrightness = 255;
 	bool showHelp = true;
@@ -256,13 +226,13 @@ namespace editNotes{
 		draw::drawPianoRoll(false);
 	}
 		
-	void setViewBarOrEnterSubstep(int button){//Add notes
+	void setSubstepOrEnterBar(int button){//Add notes
 		if(isShiftHeld){
-			setSubstepStep(button);
-			//modes::switchToMode(modes::substep, true);
-		} else {
 			exitSubstepStep();
 			setViewBar(button);
+			//modes::switchToMode(modes::substep, true);
+		} else {
+			setSubstepStep(button);
 		}
 	}
 	
@@ -284,18 +254,23 @@ namespace editNotes{
 		}
 
 	void triggerNote(int note){
+		//silenceNotesWhenRecording
 		if(settings::notePreview){
 			uint8_t previewPitch = gPFK(note);
 			Sequencing::trackArray[editTrack].playNoteOn({previewPitch, editVelocity, {false}});//Length does not matter
-			//Midi::noteOn(Sequencing::trackArray[editTrack].getMIDIchannel(), previewPitch, editVelocity);
+			if(settings::silenceNotesWhenRecording){
+				Sequencing::getActiveTrack().setTemporaryMute();
 			}
+		}
 	}
 	
 	void releaseNote(int note){
 		if(settings::notePreview){
 			uint8_t previewPitch = gPFK(note);
 			Sequencing::trackArray[editTrack].playNoteOff(previewPitch);
-			//Midi::noteOn(Sequencing::trackArray[editTrack].getMIDIchannel(), previewPitch, 0);
+			if(settings::silenceNotesWhenRecording){
+				Sequencing::getActiveTrack().setTemporaryMute();
+			}
 		}
 	}
 	
@@ -724,10 +699,22 @@ namespace performance{
 		double tempo = Sequencing::getTempo();
 		interface::all::setTempo(tempo + multiplier * 0.01);
 	}
+	
+	void tempoChangeLargeEnc(int b){
+		double tempo = Sequencing::getTempo();
+		interface::all::setTempo(tempo + (float)b);
+	}
+	
+	void tempoChangeSmallEnc(int b){
+		double tempo = Sequencing::getTempo();
+		interface::all::setTempo(tempo + (float)b * 0.01);
+	}
 		
 	//Fills etc.
 }//End performance namespace
 namespace pattUtils{
+	char currentLoadPatternName[card::maxDirectoryLength+1] = {0};
+	
 	void enterRenameMode(){
 		modes::switchToMode(modes::rename, true);
 		}
@@ -754,8 +741,7 @@ namespace pattUtils{
 				{
 					{"No",  nullFunc},
 					{"Yes", []{savePatternAsToCard(false);}}
-				},
-				modes::patternUtils
+				}
 			);
 			return; //Do not save if file exists
 		}
@@ -812,8 +798,7 @@ namespace pattUtils{
 			{
 				{"No",  nullFunc},
 				{"Yes", []{card::deletePattern(currentLoadPatternName);}}
-			},
-			modes::patternUtils
+			}
 			);
 		}
 	void renamePatternOnCard(){
@@ -965,12 +950,10 @@ namespace pattSwitch{
 		 
 	}//End pattswitch namespace
 namespace record{
-	// const int maxRecordingNotes = 16;
-	Sequencing::notePos noteBuffer[maxRecordingNotes];
 	
 	void clearNoteBuffer(){
-		for(int i = 0; i< maxRecordingNotes; i++){
-			noteBuffer[i].n.clear();
+		for(int i = 0; i< Sequencing::maxRecordingNotes; i++){
+			Sequencing::recordNoteBuffer[i].n.clear();
 		}
 	}
 	
@@ -990,21 +973,20 @@ namespace record{
 			int pitch = gPFK(key);
 			//Look for note in array:
 			bool addedNote = false;
-			for(int i = 0; i<maxRecordingNotes; i++){//See if the note is there already:
-				if(noteBuffer[i].n.isValid() && noteBuffer[i].n.getPitch() == pitch){
-					noteBuffer[i].p = Sequencing::trackArray[editTrack].getPlayPosition();
-					noteBuffer[i].n.setLength({0, 0, isShiftHeld});//If shift is held, length is set to one and will not be added
-					// lg(noteBuffer[i].n.getLength().getValue());
+			for(int i = 0; i<Sequencing::maxRecordingNotes; i++){//See if the note is there already:
+				if(Sequencing::recordNoteBuffer[i].n.isValid() && Sequencing::recordNoteBuffer[i].n.getPitch() == pitch){
+					Sequencing::recordNoteBuffer[i].p = Sequencing::trackArray[editTrack].getPlayPosition();
+					Sequencing::recordNoteBuffer[i].n.setLength({0, 0, isShiftHeld});//If shift is held, length is set to one and will not be added
+					// lg(Sequencing::recordNoteBuffer[i].n.getLength().getValue());
 					addedNote = true;
 					break;
 				}
 			}
 			if(!addedNote){//If the note is not there already:
-				for(int i = 0; i<maxRecordingNotes; i++){
-					if(!noteBuffer[i].isValid()){
-						noteBuffer[i].n.setNote(pitch, editVelocity, {0, 0, isShiftHeld}); //Length represents is shift held. Real length is not known at this stage
-						// lg(noteBuffer[i].n.getLength().getValue());
-						noteBuffer[i].p = Sequencing::trackArray[editTrack].getPlayPosition();
+				for(int i = 0; i<Sequencing::maxRecordingNotes; i++){
+					if(!Sequencing::recordNoteBuffer[i].isValid()){
+						Sequencing::recordNoteBuffer[i].n.setNote(pitch, editVelocity, {0, 0, isShiftHeld}); //Length represents is shift held. Real length is not known at this stage
+						Sequencing::recordNoteBuffer[i].p = Sequencing::trackArray[editTrack].getPlayPosition();
 						addedNote = true;
 						break;
 					}
@@ -1014,6 +996,7 @@ namespace record{
 				lg("error"); //Record buffer full
 			}
 		}
+		//Perhaps play the note, if shift is not held:
 		if(!isShiftHeld){
 			interface::editNotes::triggerNote(key);
 		}
@@ -1022,18 +1005,18 @@ namespace record{
 	void endNote(const int key){
 		if(Sequencing::isSeqPlaying()){
 			uint8_t pitch = gPFK(key);
-			for(int i = 0; i<maxRecordingNotes; i++){
-				if(noteBuffer[i].n.getPitch() == pitch){
-					if(!isShiftHeld && noteBuffer[i].n.getLength().getValue() != 1){
+			for(int i = 0; i<Sequencing::maxRecordingNotes; i++){
+				if(Sequencing::recordNoteBuffer[i].n.getPitch() == pitch){
+					if(!isShiftHeld && Sequencing::recordNoteBuffer[i].n.getLength().getValue() != 1){
 						// lg("test: ");
-						// lg(noteBuffer[i].n.getLength().getValue());
-						Sequencing::notePos np = noteBuffer[i];
+						// lg(Sequencing::recordNoteBuffer[i].n.getLength().getValue());
+						Sequencing::notePos np = Sequencing::recordNoteBuffer[i];
 						//check note length and do not add if length equals one
 						bool isMono = Sequencing::trackArray[editTrack].getTrackMode() == Sequencing::trackType::mono;
 						patMem::position length = patMem::subtract(Sequencing::trackArray[editTrack].getPlayPosition(), np.p, Sequencing::trackArray[editTrack].getLength());
 						Sequencing::getActiveTrack().addOrUpdateNote({pitch, np.n.getVelocity(), length, editAccent, editLegato}, np.p, isMono);
 					}
-					noteBuffer[i].n.clear();
+					Sequencing::recordNoteBuffer[i].n.clear();
 					scheduled::newEvent(scheduled::lOE::drawPianoRoll, []{
 						draw::drawPianoRoll(false);
 					},0);
@@ -1049,6 +1032,7 @@ namespace record{
 	void toggleRecMode(){
 		recording = !recording;
 		LEDfeedback::showExtras(LEDfeedback::getLEDSet(buttons::keySet::extra));
+		draw::recordIcon();
 	}
 	
 }//End record namespace
@@ -1065,6 +1049,12 @@ namespace all{
 		Sequencing::setTempo(tempo);
 		draw::tempo();
 	}
+	
+	void changeVolume(const int change){
+		volume += (static_cast<float>(change)*0.01);
+		lg(volume);
+	}
+	
 	void keyboardOctShift(const int udKeyNum){//0 is down. 1 is up
 		int dir = (udKeyNum * 2) - 1;
 		keyboardOctave = constrain(keyboardOctave+dir, 0, 9);
@@ -1164,7 +1154,7 @@ namespace colour{
 	uint8_t value = 0;
 	
 	void updateValueFromTheme(){
-		value = scrn::mainTheme.getColourChannelValue(editColourDescriptor, editColourChannel);
+		value = scrn::getColourChannelValue(editColourDescriptor, editColourChannel);
 	}
 	
 	void setEditColourDescriptor(const int i){
@@ -1182,7 +1172,7 @@ namespace colour{
 	}
 	
 	void editColour(const int val){
-		scrn::mainTheme.editColour(editColourDescriptor, editColourChannel, val);
+		scrn::editColour(editColourDescriptor, editColourChannel, val);
 		value = val;
 		// draw::editColoursVars();
 		// draw::editColours();
@@ -1762,22 +1752,22 @@ namespace selection{
 	}
 }//end select namespace
 namespace modeSelect{
-	modes::modeType typeToDisplay = modes::modeType::creation;
 	
+	modes::modeType typeToDisplay = modes::modeType::creation;
 	int8_t modesDisplaying[16] = {0}; // List of IDs
 	
 	void getRelevantModes(){
 		for(int i=0; i<16; i++){
 			modesDisplaying[i] = -1;
 		}
+		
 		int counter = 0;
-		for(int i=0; i<modes::numberOfModes; i++){
-			if(modes::listOfModes[i] == nullptr){return;}
-			if(modes::listOfModes[i]->getType() == typeToDisplay){
-				modesDisplaying[counter] = modes::listOfModes[i]->getID();
+		modes::forEachMode([&counter](modes::mode m){
+			if (m.getType() == typeToDisplay){
+				modesDisplaying[counter] = m.getID();
 				counter++;
 			}
-		}
+		});
 	}
 	
 	void setDisplayType(const int button){
@@ -1789,10 +1779,10 @@ namespace modeSelect{
 	}
 	
 	void goToMode(const int button){
-		int ID =	modesDisplaying[button];
-		modes::mode* switchTo = modes::listOfModes[ID];
-		if(switchTo){
-			modes::switchToMode(*switchTo, true);
+		int id =	modesDisplaying[button];
+		modes::mode& switchTo = modes::getModeByID(id);
+		if(modes::isValid(switchTo)){
+			modes::switchToMode(switchTo, true);
 		}
 	}
 	

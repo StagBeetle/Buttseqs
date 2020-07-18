@@ -11,12 +11,11 @@ namespace list{
 		numbered, 
 		normal,
 		fullkeyed,//Shows the keys needed to switch to this thing e.g. 1, 5.. Intended to be for combos but combos are a bad idea
-		modal
+		modal,
+		keyboard, //accessible by the note keys
+		data, //accessible by the data keys (in the bulk edit mode)
 		};
 	//const int dataXCoord = 300;
-	
-	std::function<void(int)> setterFunc = nullptr;
-	setVarAfterDelay::setDecimal listSetter{nullIntFunc, 0, 0};
 	
 	enum class liElemType : uint8_t{
 		plain	,
@@ -56,28 +55,7 @@ namespace list{
 			const std::function<void()> postAction;
 			const std::vector<int> minMax;
 	};
-	//Functions taking a number:
-	template<> void sF<int>	::operator()(int n){(void)(n)	; pa();	}
-	template<> void sF<volatile bool*>	::operator()(int n){*parameter = !*parameter;(void)(n)	; pa();	}
-	template<> void sF<voidvoid>	::operator()(int n){parameter();(void)(n)	; pa();	}
-	template<> void sF<voidint>	::operator()(int n){
-	//This gap here due to ealstic tabstops
-		if(minMax.size() == 0){
-			parameter(n);
-		} else {
-			listSetter.setSetter(parameter);
-			listSetter.setConstraints(minMax[0], minMax[1]);
-			listSetter.buttonPress(n);
-		}
-		pa();
-	}
-	
-	//Functions taking no number:
-	template<> void sF<>	::operator()(){	}
-	template<> void sF<volatile bool*>	::operator()(){*parameter = !*parameter;	pa();	}
-	template<> void sF<voidvoid>	::operator()(){parameter();	pa();	}
-	template<> void sF<voidint>	::operator()(){	}
-	
+
 	template<class f = int>class gF{//Initialise with an int for no variable
 		public:
 			gF(volatile f c_func = 0, std::vector<const char*> c_values = {}) : 
@@ -88,67 +66,9 @@ namespace list{
 			const f func;
 			const std::vector<const char*> values;
 	};
-	template<> void gF<charpvoid>::get(char* str) const{
-		strcpy(str, func());
-		}
-	template<> void gF<intvoid>::get(char* str) const{
-		int val = func();
-		sprintf(str, "%d", val);
-		}
-	template<> void gF<boolvoid>::get(char* str) const{
-		strcpy(str, values[func()]);
-		}
-	template<> void gF<volatile bool*>::get(char* str) const{
-		strcpy(str, values[*func]);
-		}
-	template<> void gF<int>::get(char* str) const{
-		}
+	
 
-	
-	/*
-	template<class f, class g>class gs{
-		public:
-			//Boolean function setter:
-			template<class f, class g> gs(f c_setter, g c_getter, std::vector<char*> c_values = {}, std::function<void()> c_postAction = nullptr) : 
-				setter(c_setter, c_postAction),
-				getter(c_getter, c_values)
-				{}
-			//Single functions:
-			template<class f> gs(f c_setter) : 
-				setter(c_setter),
-				getter(0)
-				{}
-			//Int set variables:
-			template<class f, class g> gs(f c_setter, g c_getter, std::vector<int>c_minMax) : 
-				setter(c_setter, nullptr, c_minMax),
-				getter(c_getter)
-				{}
-			//Boolean variables:
-			gs(bool& var, std::vector<char*> c_values = {}, std::function<void()> c_postAction = nullptr) : 
-				setter(&var, c_postAction),
-				getter(&var, c_values)
-				{}
-			//PatMem & card
-			gs() : 
-				setter(0), 
-				getter(0) 
-				{}
-			
-			void operator()(int n){
-				setter(n);
-			}
-			void operator()(){
-				setter();
-			}
-			void get(char* str){
-				getter.get(str);
-			}
-		private:
-			sF<f> setter;
-			gF<g> getter;
-	};
-	*/
-	
+
 	class liElem{
 		protected:
 			const static int maxStringLength = 24;
@@ -246,12 +166,7 @@ namespace list{
 	
 	
 	
-	void deleteList(std::vector<list::liElem*>* theListVec){//Delete all the elements in a list and the list itself
-		for(int16_t i = theListVec->size()-1; i>=0; i--){
-			delete (*theListVec)[i];
-			}
-		delete theListVec;
-	}
+	extern void deleteList(std::vector<list::liElem*>* theListVec);//Delete all the elements in a list and the list itself
 	
 	class listController{
 		protected:
@@ -301,6 +216,31 @@ namespace list{
 						scrn::write(xOffset + 5 , yline, (*liElems)[i]->getNumber()/16);
 						scrn::write(xOffset + 25, yline, (*liElems)[i]->getNumber()%16);
 						scrn::write(xOffset + 50, yline, listString);
+					} else if (type == listType::keyboard){
+						const bool isBlack = gc::keyColours[i % 12];
+						const int keySize = 16;
+						const int offset = 2;
+						char noteName[3] = {0};
+						utl::getNoteNameFromNumber(noteName, i);
+						if(isBlack){
+							scrn::writeFillRect(xOffset + 15-offset, yline-offset, keySize, keySize, scrn::getThemeColour(scrn::td::acc1));
+							scrn::write(xOffset + 15, yline, noteName);
+						} else {
+							scrn::writeFillRect(xOffset + 5-offset, yline-offset, keySize, keySize, scrn::getThemeColour(scrn::td::acc2));
+							scrn::write(xOffset + 5, yline, noteName);
+						}	
+						scrn::write(xOffset + 35, yline, listString);
+					} else if (type == listType::data){
+						const int boxSize = 3;
+						const int marginSize = 1;
+						const int repeatingSize = boxSize + marginSize;
+						for(int box = 0; box < 16; box ++){
+							const int xPos = xOffset + 5 + (box % 4) * repeatingSize;
+							const int yPos = yline + (box / 4) * repeatingSize;
+							scrn::colour colour = i == box ? scrn::getThemeColour(scrn::td::highlight) : scrn::getThemeColour(scrn::td::acc1);
+							scrn::writeFillRect(xPos, yPos, boxSize, boxSize, colour);
+						}
+						scrn::write(xOffset + 25, yline, listString);
 					} else {//Regular draw:
 						scrn::write(xOffset + 5, yline, listString);
 					};
@@ -491,76 +431,17 @@ namespace list{
 	extern listControllerFixed	MIDIInput; 
 	extern listControllerFixed	MIDIOutput; 
 	
-	list::listController*	activeList	= nullptr;
-	list::liElem*	activeliElem	= nullptr;
 	
-	
-	//Held setters:
-	//liElem* heldListItem = nullptr;
-	std::function<void(int)> heldListItem = nullptr;
-	
-	void clearHeldSetter(){
-		// lg("ClearHeldSetter");
-		heldListItem = nullptr;
-	}
-	
-	void setHeldSetter(std::function<void(int)> item){
-		// lg("SetHeldSetter");
-		heldListItem = item;
-	}
-	
-	void useHeldSetter(const int button){
-		// lgc("usHeSe:");
-		// lg(button);
-		heldListItem(button);
-		//activeList->draw();
-	}
-	
-	bool isHeldSetter(){
-		bool isSetter = heldListItem != nullptr;
-		// lg("isHeldSetter?");
-		// lg(isSetter ? "yes" : "no");
-		return isSetter;
-	}
-	
+	extern void clearHeldSetter();
+	extern void setHeldSetter(std::function<void(int)> item);
+	extern void useHeldSetter(const int button);
+	extern bool isHeldSetter();
 	//General list functions:
-	void setActiveList(list::listController* newList){
-		activeList = newList;
-		if(activeList){
-			activeList->draw();
-			activeliElem = activeList->getActiveListItem();
-		} else {
-			activeliElem = nullptr;
-		}
-	}
-	
-	void jumpTo(const uint8_t button){//Absolute position
-		if(activeList){
-			activeliElem = activeList->moveTo(button);
-		}
-		setHeldSetter(activeliElem->getSetter());
-	}
-	
-	void moveList(const int dir){//Up down
-		if(activeList){
-			activeliElem = activeList->listMove(dir);
-		}
-	}
-	
-	void performActionOnActiveListItem(const int button){
-		if(activeliElem){
-			(*activeliElem)(button);
-			if(activeList){
-				activeList->draw();
-			}
-		}
-	}
-	
-	void drawList(){
-		if(activeList){
-			activeList->draw();
-		}
-	}
+	extern void setActiveList(list::listController* newList);
+	extern void jumpTo(const uint8_t button);
+	extern void moveList(const int dir);
+	extern void performActionOnActiveListItem(const int button);
+	extern void drawList();
 
 }//End namespace
 #endif

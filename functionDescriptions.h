@@ -28,8 +28,9 @@ namespace functionDescriptions{
 	
 	//std::array<std::pair<voidint, const char*>, 6> 
 	forMap::for_map<voidint, const char*, 48> funcMap = {{{
+		//{interface::editNotes::addNoteOnStep	, "Change the current step and add a note"	},
 		{interface::editNotes::addNoteOnStep	, "Change the current step and add a note"	},
-		{interface::editNotes::setViewBarOrEnterSubstep	, "Change the active bar and exit substep or enter a substep"	},
+		{interface::editNotes::setSubstepOrEnterBar	, "Change the active bar and exit substep or enter a substep"	},
 		{interface::editNotes::addNoteOnPitch	, "Change the current pitch and add a note"	},
 		{interface::editNotes::releaseNote	, "End the MIDI note if one is playing"	},
 		{interface::all::keyboardOctShift	, "Change the keyboard octave"	},
@@ -39,7 +40,7 @@ namespace functionDescriptions{
 		{interface::editStep::setViewBarOrEditSubstep	, "Change the active bar or step for substep"	},
 		{interface::editNotes::setEditPitch	, "Change the pitch selection"	},
 		{interface::editStep::editStepParameter	, "Modify the active parameter"	},
-		{interface::all::jumpToListItem	, jumpToListItem	},
+		{interface::all::jumpToListItem	, jumpToListItem	},//This should not run ever
 		{list::performActionOnActiveListItem	, "Modify the active parameter"	},
 		{interface::all::listMove	, "Traverse List"	},
 		{interface::process::rangeSet	, "Set first and last step of range"	},
@@ -87,19 +88,16 @@ namespace functionDescriptions{
 			[&counter](buttons::keySet::ks k, buttons::buttonEvent::be e, voidint f){
 				const int pos = funcMap.find(f);
 				if(pos != -1){
-					int yHeight = 5 + (counter*lineHeight) + scrn::topOffset;
-					scrn::writeFillRect(5, yHeight , 470, lineHeight, scrn::getThemeColour(scrn::td::bg));
-					//scrn::write(5, yHeight, buttons::keySetNames[k]);
-					scrn::writeIcon(5, yHeight, static_cast<scrn::iconIndex>(k), scrn::getThemeColour(scrn::td::fg));
-					scrn::writeIcon(5 + 45, yHeight, static_cast<scrn::iconIndex>((int)e + scrn::eventOffset) , scrn::getThemeColour(scrn::td::fg));
-					//draw::keyIcon(5, yHeight, k);
-					//scrn::write(90, yHeight, buttons::buttonEventNames[static_cast<int>(e)]);
+					int yLine = 5 + (counter*lineHeight) + scrn::topOffset;
+					scrn::writeFillRect(5, yLine , 470, lineHeight, scrn::getThemeColour(scrn::td::bg));
+					draw::buttons(5, yLine, k, 2); //Draw the buttons
+					scrn::write(60, yLine, buttons::buttonEventNames[e]);
 					const char* description = funcMap.getValue(pos);
 					if(description == jumpToListItem){
 						description = jumpToListItemMap.findAndGet(&modes::getActiveMode());
 					}
 					// lg(description);
-					scrn::write(75, yHeight, description);
+					scrn::write(120, yLine, description);
 					counter ++;
 				} else {
 					lg("FUNC NOT FOUND");

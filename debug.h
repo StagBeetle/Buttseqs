@@ -1,8 +1,12 @@
 #ifndef debug_h
 #define debug_h
+
 namespace debug{
-void processMessage();
-void serialButtonCheck();
+extern void processMessage();
+extern void serialButtonCheck();
+extern void addLoopTimeToAverage();
+extern int getAverageLoopTime();
 }
 
 #endif
+
