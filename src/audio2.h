@@ -1,14 +1,13 @@
 #ifndef audio2_h
 #define audio2_h
+
+#include "audio.h"
+#include "drumSampler.h"
+#include "monoSynth.h"
+
 namespace audio{
 
 	const int numberOfSoundEngines = 3;
-	
-	audio::audioUnit* soundEngines[numberOfSoundEngines] = {
-		nullptr	,
-		&drumSampler::DRUM	,
-		&monoSynth::monoSynth	,
-	};
 	
 	const char* const soundEngineNames[numberOfSoundEngines] = {
 		"none"	,
@@ -16,33 +15,15 @@ namespace audio{
 		"30.3"	,
 	};
 	
-	audio::audioUnit* getSoundEngine(const int num){
-		if(num < numberOfSoundEngines){
-			return soundEngines[num];
-		}
-		return nullptr;
-	}
+	audio::audioUnit* getSoundEngine(const int num);
 	
-	const char* getSoundEngineName(const int num){ 
-		if(num < numberOfSoundEngines){
-			return soundEngineNames[num];
-		}
-		return "invalid";
-	}
+	const char* getSoundEngineName(const int num);
 	
-	bool isValidIndex(const int index){//Allows zero for none
-		return (index < numberOfSoundEngines);
-	}
+	bool isValidIndex(const int index);//Allows zero for none
 	
-	bool isValidEngine(const int index){//Does not allow zero
-		return (index > 0 && index < numberOfSoundEngines);
-	}
+	bool isValidEngine(const int index);//Does not allow zero
 	
-	void sendAllNotesOff(){
-		for(int i = 1; i< numberOfSoundEngines; i++){
-			soundEngines[i]->allNotesOff();
-		}
-	}
+	void sendAllNotesOff();
 
 }//end namespace
 #endif

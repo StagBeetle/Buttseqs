@@ -1,5 +1,5 @@
-#ifndef forMap_h
-#define forMap_h
+#pragma once
+
 namespace forMap{
 	
 	//I think this is simpler to use than the STL alternative, though less efficient
@@ -41,4 +41,3 @@ namespace forMap{
 			}
 	};
 }
-#endif

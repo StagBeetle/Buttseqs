@@ -7,66 +7,100 @@
 #include <bitset>
 // LEDfeedback::updateLEDs();
 
-uint8_t brightnesses[4] = {0,2,40,255};
-
-uint8_t keyOffsets[7] = { 0, 16, 41, 43, 45, 61, 77};
-uint8_t   keySizes[7] = {16, 25,  2,  2, 16, 16,  4};
-
-
-
 namespace LEDfeedback{
+	//HARDWARE setup:
+	auto AUXSPIBUS = SPI1;
+	const uint8_t LEDCS = 31;
+	const uint8_t numberOfButtons = 81;
+	SPISettings sk9822(2000000, MSBFIRST, SPI_MODE3); 
+	uint8_t brightness = 2;
 	
-		void LEDsOn(){
-		Wire.beginTransmission(_i2caddr);
-		Wire.write((byte)(0x00));
-		for(int i = 0; i<18; i++){
-			Wire.write(255);
+	// uint8_t brightnesses[4] = {0,2,40,255};
+
+	uint8_t keyOffsets[7] = { 0, 16, 41, 43, 45, 61, 77};
+	uint8_t   keySizes[7] = {16, 25,  2,  2, 16, 16,  4};
+	
+	uint8_t LEDValues[numberOfButtons][4] = {0};
+	
+
+	void begin(){
+		// AUXSPIBUS.begin();
+		pinMode(LEDCS, OUTPUT);
+	}
+	
+	void transmitFixedFrame(uint8_t f){
+		for(int i = 0; i<4; i++){
+			AUXSPIBUS.transfer(f);
+			// delay(10);
 		}
-		Wire.endTransmission();
 	}
 
-	void setup(){
-		Wire.begin();
-		Wire.setClock(400000);
-		writeRegister8(ISSI_BANK_FUNCTIONREG, ISSI_REG_SHUTDOWN, 0x00); // shutdown
-		delay(10);
-		writeRegister8(ISSI_BANK_FUNCTIONREG, ISSI_REG_SHUTDOWN, 0x01); // out of shutdown
-		writeRegister8(ISSI_BANK_FUNCTIONREG, ISSI_REG_CONFIG, ISSI_REG_CONFIG_PICTUREMODE); // picture mode
-		displayFrame(0);
-		Wire.beginTransmission(_i2caddr);
-		Wire.write((byte)ISSI_COMMANDREGISTER);
-		Wire.write(0);
-		Wire.endTransmission();
-		LEDsOn();
+	void transmitFrame(uint8_t v, uint8_t r, uint8_t g, uint8_t b){
+		v = v % 32;
+		AUXSPIBUS.transfer((128+64+32) | v);
+		// AUXSPIBUS.transfer(B11100000);
+		// delay(10);
+		AUXSPIBUS.transfer(b);
+		// delay(10);
+		AUXSPIBUS.transfer(g);
+		// delay(10);
+		AUXSPIBUS.transfer(r);
+		// delay(10);
 	}
 
-	void LED_PWM(const uint8_t reg, const uint8_t data) {
-		Wire.beginTransmission(_i2caddr);
-		Wire.write((byte)0x24 + reg);
-		Wire.write((byte)data);
-		Wire.endTransmission();
+	bool hasChanged = false;
+	
+	void scheduleChange(){
+		hasChanged = true;
 	}
-
-	void setLEDs(const int ledset, const uint8_t* dataArray){
-		Wire.beginTransmission(_i2caddr);
-		Wire.write((byte)0x24 + keyOffsets[ledset]);
-		for(int i = 0; i< keySizes[ledset]; i++){
-			Wire.write(brightnesses[(*(dataArray+i))%4]); // 0 1 2 3 -- Mod 4 incase some shit data gets fed in
+		
+	
+	void sendLEDs(){
+		if(hasChanged){
+			AUXSPIBUS.beginTransaction(sk9822);
+			digitalWrite(LEDCS,HIGH);
+			transmitFixedFrame(0);
+			for(int i = 0; i<numberOfButtons; i++){
+				transmitFrame(LEDValues[i][0], LEDValues[i][1], LEDValues[i][2], LEDValues[i][3]);
+			}
+			transmitFixedFrame(255);
+			digitalWrite(LEDCS,LOW);
+			AUXSPIBUS.endTransaction();
+			hasChanged = false;
 		}
-		Wire.endTransmission();
 	}
-
-// void writeLED(const uint8_t* data){
-	// const uint8_t* d = data+1;
-	// setLEDs(data[0], d);
-// }
+	
+	
+	const uint8_t rainbowArray[7][3] = {
+		{255, 5, 5},
+		{250, 50, 15},
+		{250, 128, 5},
+		{20, 250, 20},
+		{20, 20, 200},
+		{220, 0, 255},
+		{250, 50, 210},
+	};
+	const char* const hueColours[] = {"red", "orange", "yellow", "green", "blue", "indigo", "violet"};
+	
+	uint8_t activeHue = 0;
+	void setActiveHue(const int newHue){
+		if(newHue < 7){
+			activeHue = newHue;
+			// sendLEDs();
+			scheduleChange();
+		}
+	}
+	
+	const char* getActiveHue(){
+		return hueColours[activeHue];
+	}
 
 		class LEDSet{
 			private:
-				static const uint8_t maxRequired = 25;
+				// static const uint8_t maxRequired = 25;
 				const uint8_t sendNum;
 				const uint8_t numberOfLEDs;
-				std::bitset<maxRequired*2> ledArray; //Waste of space but it doesn't really matter
+				// std::bitset<maxRequired*2> ledArray; //Waste of space but it doesn't really matter
 				//int ledArray[maxRequired] = {0};
 			public:
 				LEDSet(const uint8_t c_sendNum, const uint8_t c_numberOfLEDs) :
@@ -74,40 +108,43 @@ namespace LEDfeedback{
 				numberOfLEDs(c_numberOfLEDs) {}
 				
 				void send(){
-					uint8_t arr[numberOfLEDs];
-					//arr[0] = sendNum;
-					//arr[0] = sendNum + 48;
-					for(unsigned int i = 0; i<numberOfLEDs; i++){
-						uint8_t val = getSingle(i);
-						arr[i] = val;
-					}
-					setLEDs(sendNum, arr);
-					//utl::sendSerialArray(sendNum + 48, arr, numberOfLEDs);
-					//comms::send(comms::pM::LED, 0, arr, numberOfLEDs+1);
+					scheduleChange();
 				}
 				
 				void clear(){
-					ledArray.reset();
+					// ledArray.reset();
+					for (int i = keyOffsets[sendNum]; i < keyOffsets[sendNum] + keySizes[sendNum]; i++){
+						LEDValues[i][0] = 0;
+						LEDValues[i][1] = 0;
+						LEDValues[i][2] = 0;
+						LEDValues[i][3] = 0;
+					}
+					scheduleChange();
 				}
 				void sendSendNum(){
 					lg(sendNum);
 					lg(numberOfLEDs);
 				}
 				void clearAndSend(){
-					ledArray.reset();
-					send();
+					clear();
+					// send();
+					scheduleChange();
 				}
 				void setSingle(const uint8_t num, const int val){
 					if(num < numberOfLEDs){
-						ledArray.set(2*num	, val / 2);
-						ledArray.set(2*num+1	, val % 2);
+						int LEDIndex = keyOffsets[sendNum] + num;
+						LEDValues[LEDIndex][0] = val;
+						LEDValues[LEDIndex][1] = rainbowArray[activeHue][0];
+						LEDValues[LEDIndex][2] = rainbowArray[activeHue][1];
+						LEDValues[LEDIndex][3] = rainbowArray[activeHue][2];
 					}
+					scheduleChange();
 				}
 				uint8_t getSingle(const uint8_t num){
 					if(num < numberOfLEDs){
+						int LEDIndex = keyOffsets[sendNum] + keySizes[sendNum] + num;
 						return 
-							ledArray.test(num*2) * 2 + 
-							ledArray.test(num*2+1);
+							LEDValues[LEDIndex][0];
 					} else {
 						return 0;
 					}
@@ -127,10 +164,11 @@ namespace LEDfeedback{
 					// }
 				template<typename T>void update(const T arr){
 					for(unsigned int i = 0; i<arr.max_size() && i<numberOfLEDs; i++){
-						ledArray.set(2*i	, arr[i] / 2);
-						ledArray.set(2*i+1	, arr[i] % 2);
+						// int LEDIndex = keyOffsets[sendNum] + keySizes[sendNum] + i;
+						setSingle(i,arr[i]);
 					}
-					send();
+					//send();
+					scheduleChange();
 				}
 		};
 		LEDSet
@@ -162,7 +200,7 @@ namespace LEDfeedback{
 					return mores;
 			}
 		}
-		
+
 		void showStepSelection(LEDSet& LEDs){
 			std::array<int, gc::keyNum::steps> arr = {false};
 			if(interface::settings::editSubstepsAlso){
@@ -264,7 +302,7 @@ namespace LEDfeedback{
 		void showTrackMutes(LEDSet& LEDs){
 			LEDs.clear();
 			for (int i = 0; i<gc::keyNum::steps; i++){
-				LEDs.setSingle(i, !Sequencing::trackArray[i].getMuted() ? 3 : 0);
+				LEDs.setSingle(i, !Sequencing::getTrack(i).getMuted() ? 3 : 0);
 				}
 			LEDs.send();
 			}
@@ -273,7 +311,7 @@ namespace LEDfeedback{
 			LEDs.clear();
 			for (int i = 0; i<gc::keyNum::notes;i++){
 				int theNote = i+(12*interface::keyboardOctave);
-				bool muted = (theNote < 128) ? Sequencing::trackArray[interface::editTrack].isNoteMuted(theNote) : true;
+				bool muted = (theNote < 128) ? Sequencing::getActiveTrack().isNoteMuted(theNote) : true;
 				LEDs.setSingle(i, !muted ? 3 : 0);
 				}
 			LEDs.send();
@@ -282,7 +320,7 @@ namespace LEDfeedback{
 		void showAvailableTrackBank(LEDSet& LEDs){
 			LEDs.clear();
 			for (int i = 0; i<gc::keyNum::datas; i++){
-				bool isThereAPatternAtThatPosition = Sequencing::trackArray[interface::editTrack].doesTrackBankHavePattern(i);
+				bool isThereAPatternAtThatPosition = Sequencing::getActiveTrack().doesTrackBankHavePattern(i);
 				LEDs.setSingle(i, isThereAPatternAtThatPosition ? 3 : 0);
 				}
 			LEDs.send();
@@ -303,14 +341,14 @@ namespace LEDfeedback{
 			if(modes::getActiveMode().allowChase()){
 				modes::getActiveMode().updateLEDs(); // Clears the old lit steps
 				if (Sequencing::isSeqPlaying()){
-					int currentPatternStep = Sequencing::trackArray[interface::editTrack].getCurrentStep();
-					int length = Sequencing::trackArray[interface::editTrack].getStepsPerBar();
+					int currentPatternStep = Sequencing::getActiveTrack().getCurrentStep();
+					int length = Sequencing::getActiveTrack().getStepsPerBar();
 					LEDs.setSingleIfBrighter(currentPatternStep, 3);
 					if(interface::settings::useFancyLEDChaser){
 						LEDs.setSingleIfBrighter((currentPatternStep-1) % length, 2);
 						LEDs.setSingleIfBrighter((currentPatternStep-2) % length, 1);
 						}
-					LEDs.setSingleIfBrighter(Sequencing::trackArray[interface::editTrack].getCurrentBar(), 2);
+					// LEDs.setSingleIfBrighter(Sequencing::getActiveTrack().getCurrentBar(), 2);
 					}
 				LEDs.send();
 			}
@@ -333,7 +371,7 @@ namespace LEDfeedback{
 			// lg(Sequencing::seqSta[static_cast<int>(Sequencing::seqStatus)]);
 			int playButtonIllumination = 0;
 			int stopButtonIllumination = 0;
-			switch(Sequencing::seqStatus){
+			switch(Sequencing::getSequencerStatus()){
 				case Sequencing::sequencerStatus::stopped :
 					playButtonIllumination = 0;
 					stopButtonIllumination = 3;
@@ -377,11 +415,13 @@ namespace LEDfeedback{
 		}
 		
 		void clearAll(){
-			steps.clearAndSend();
-			notes.clearAndSend();
-			verti.clearAndSend();
-			horiz.clearAndSend();
-			datas.clearAndSend();
+			for (int i = 0; i < numberOfButtons; i++){
+				LEDValues[i][0] = 0;
+				LEDValues[i][1] = 0;
+				LEDValues[i][2] = 0;
+				LEDValues[i][3] = 0;
+			}
+			// sendLEDs();
 		}
 		
 		void updateLEDs(){

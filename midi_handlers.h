@@ -8,7 +8,7 @@ namespace MIDIhandlers{
 	
 	void myNoteOn(byte channel, byte note, byte velocity, const uint8_t port){//Absolute mess:
 		// lg("myNoteOn");
-		midiInput& m = inputs[port];//Get the port
+		midiInputSettings& m = getMIDIInputSettings(port);//Get the port
 		routingType route = m.getRoutingType();
 		if(route == routingType::none)
 			{return;}
@@ -54,7 +54,7 @@ namespace MIDIhandlers{
 				if(!recording){return;}
 				break;
 			case notePreviewType::stoppedOnly:
-				if(Sequencing::seqStatus != Sequencing::sequencerStatus::stopped){return;}
+				if(Sequencing::getSequencerStatus() != Sequencing::sequencerStatus::stopped){return;}
 				break;
 			case notePreviewType::priority:
 				interface::mute::muteTrack(relevantTrack);
@@ -76,10 +76,10 @@ namespace MIDIhandlers{
 			case routingType::activePattern :
 			case routingType::track :
 			case routingType::trackFromChannel :
-				outputPort = Sequencing::trackArray[relevantTrack].getMIDIPortNumber() - 1;
+				outputPort = Sequencing::getTrack(relevantTrack).getMIDIPortNumber() - 1;
 				break;
 			case routingType::buttons:
-				outputPort = Sequencing::trackArray[interface::editTrack].getMIDIPortNumber() - 1;
+				outputPort = Sequencing::getActiveTrack().getMIDIPortNumber() - 1;
 				break;
 			case routingType::port:
 				outputPort = m.getRoutingDestination();
@@ -89,7 +89,7 @@ namespace MIDIhandlers{
 		}
 		if(outputPort >= 0){
 			lg("MIDIhandlers::switch");
-			MIDIports::sendNoteOn(note, velocity, channel, outputPort);
+			sendNoteOn(note, velocity, channel, static_cast<MIDIPort>(outputPort));
 		}
 	}
 	
@@ -119,20 +119,20 @@ namespace MIDIhandlers{
   void myTuneRequest(const uint8_t port){}
 	
   void myClock(const uint8_t port){
-		if(inputs[port].receiveClock){
-			clockReceive::onClock();
+		if(getMIDIInputSettings(port).receiveClock){
+			//clockReceive::onClock();
 		}
 	}
 	
   void myStart(const uint8_t port){
-		if(inputs[port].receiveStartStop){
+		if(getMIDIInputSettings(port).receiveStartStop){
 			Sequencing::startSequencer();
 		}
 	}
   void myContinue(const uint8_t port){}
 	
   void myStop(const uint8_t port){
-		if(inputs[port].receiveStartStop){
+		if(getMIDIInputSettings(port).receiveStartStop){
 			Sequencing::stopSequencer();
 		}
 	}
@@ -141,8 +141,8 @@ namespace MIDIhandlers{
   void mySystemReset(const uint8_t port){}
   void myRealTimeSystem(byte realtimebyte, const uint8_t port){}
 	
-	void setup(){
-		using namespace std::placeholders;
+	void begin(){
+		// using namespace std::placeholders;
 		
 		// for(int i = 0; i<gc::numberOfMIDIIns-1; i++){
 			// inPorts[i].setHandleNoteOff(	std::bind(&myNoteOff	,_1, _2, _3, i	) );
@@ -161,65 +161,65 @@ namespace MIDIhandlers{
 			// inPorts[i].setHandleSystemReset(	std::bind(&mySystemReset	,i	) );
 		// }
 		
-		inPorts[0].setHandleNoteOff(	[](	byte chan, byte pitch, byte velocity	){myNoteOff	(chan, pitch, velocity, 0	); });
-		inPorts[0].setHandleNoteOn(	[](	byte chan, byte pitch, byte velocity	){myNoteOn	(chan, pitch, velocity, 0	); });
-		inPorts[0].setHandleAfterTouchPoly(	[](	byte chan, byte pitch, byte velocity	){myAfterTouchPoly	(chan, pitch, velocity, 0	); });
-		inPorts[0].setHandleControlChange(	[](	byte chan, byte control, byte value	){myControlChange	(chan, control, value, 0	); });
-		inPorts[0].setHandleProgramChange(	[](	byte channel, byte program	){myProgramChange	(channel, program, 0	); });
-		inPorts[0].setHandleTimeCodeQuarterFrame(	[](	byte data	){myTimeCodeQuarterFrame	(data, 0	); });
-		inPorts[0].setHandleSongSelect(	[](	byte songNumber	){mySongSelect	(songNumber, 0	); });
-		inPorts[0].setHandleTuneRequest(	[](		){myTuneRequest	(0	); });
-		inPorts[0].setHandleClock(	[](		){myClock	(0	); });
-		inPorts[0].setHandleStart(	[](		){myStart	(0	); });
-		inPorts[0].setHandleContinue(	[](		){myContinue	(0	); });
-		inPorts[0].setHandleStop(	[](		){myStop	(0	); });
-		inPorts[0].setHandleActiveSensing(	[](		){myActiveSensing	(0	); });
-		inPorts[0].setHandleSystemReset(	[](		){mySystemReset	(0	); });
+		getMIDIInputHardwarePort(0).setHandleNoteOff(	[](	byte chan, byte pitch, byte velocity	){myNoteOff	(chan, pitch, velocity, 0	); });
+		getMIDIInputHardwarePort(0).setHandleNoteOn(	[](	byte chan, byte pitch, byte velocity	){myNoteOn	(chan, pitch, velocity, 0	); });
+		getMIDIInputHardwarePort(0).setHandleAfterTouchPoly(	[](	byte chan, byte pitch, byte velocity	){myAfterTouchPoly	(chan, pitch, velocity, 0	); });
+		getMIDIInputHardwarePort(0).setHandleControlChange(	[](	byte chan, byte control, byte value	){myControlChange	(chan, control, value, 0	); });
+		getMIDIInputHardwarePort(0).setHandleProgramChange(	[](	byte channel, byte program	){myProgramChange	(channel, program, 0	); });
+		getMIDIInputHardwarePort(0).setHandleTimeCodeQuarterFrame(	[](	byte data	){myTimeCodeQuarterFrame	(data, 0	); });
+		getMIDIInputHardwarePort(0).setHandleSongSelect(	[](	byte songNumber	){mySongSelect	(songNumber, 0	); });
+		getMIDIInputHardwarePort(0).setHandleTuneRequest(	[](		){myTuneRequest	(0	); });
+		getMIDIInputHardwarePort(0).setHandleClock(	[](		){myClock	(0	); });
+		getMIDIInputHardwarePort(0).setHandleStart(	[](		){myStart	(0	); });
+		getMIDIInputHardwarePort(0).setHandleContinue(	[](		){myContinue	(0	); });
+		getMIDIInputHardwarePort(0).setHandleStop(	[](		){myStop	(0	); });
+		getMIDIInputHardwarePort(0).setHandleActiveSensing(	[](		){myActiveSensing	(0	); });
+		getMIDIInputHardwarePort(0).setHandleSystemReset(	[](		){mySystemReset	(0	); });
 		
-		inPorts[1].setHandleNoteOff(	[](	byte chan, byte pitch, byte velocity	){myNoteOff	(chan, pitch, velocity, 1	); });
-		inPorts[1].setHandleNoteOn(	[](	byte chan, byte pitch, byte velocity	){myNoteOn	(chan, pitch, velocity, 1	); });
-		inPorts[1].setHandleAfterTouchPoly(	[](	byte chan, byte pitch, byte velocity	){myAfterTouchPoly	(chan, pitch, velocity, 1	); });
-		inPorts[1].setHandleControlChange(	[](	byte chan, byte control, byte value	){myControlChange	(chan, control, value, 1	); });
-		inPorts[1].setHandleProgramChange(	[](	byte channel, byte program	){myProgramChange	(channel, program, 1	); });
-		inPorts[1].setHandleTimeCodeQuarterFrame(	[](	byte data	){myTimeCodeQuarterFrame	(data, 1	); });
-		inPorts[1].setHandleSongSelect(	[](	byte songNumber	){mySongSelect	(songNumber, 1	); });
-		inPorts[1].setHandleTuneRequest(	[](		){myTuneRequest	(1	); });
-		inPorts[1].setHandleClock(	[](		){myClock	(1	); });
-		inPorts[1].setHandleStart(	[](		){myStart	(1	); });
-		inPorts[1].setHandleContinue(	[](		){myContinue	(1	); });
-		inPorts[1].setHandleStop(	[](		){myStop	(1	); });
-		inPorts[1].setHandleActiveSensing(	[](		){myActiveSensing	(1	); });
-		inPorts[1].setHandleSystemReset(	[](		){mySystemReset	(1	); });
+		getMIDIInputHardwarePort(1).setHandleNoteOff(	[](	byte chan, byte pitch, byte velocity	){myNoteOff	(chan, pitch, velocity, 1	); });
+		getMIDIInputHardwarePort(1).setHandleNoteOn(	[](	byte chan, byte pitch, byte velocity	){myNoteOn	(chan, pitch, velocity, 1	); });
+		getMIDIInputHardwarePort(1).setHandleAfterTouchPoly(	[](	byte chan, byte pitch, byte velocity	){myAfterTouchPoly	(chan, pitch, velocity, 1	); });
+		getMIDIInputHardwarePort(1).setHandleControlChange(	[](	byte chan, byte control, byte value	){myControlChange	(chan, control, value, 1	); });
+		getMIDIInputHardwarePort(1).setHandleProgramChange(	[](	byte channel, byte program	){myProgramChange	(channel, program, 1	); });
+		getMIDIInputHardwarePort(1).setHandleTimeCodeQuarterFrame(	[](	byte data	){myTimeCodeQuarterFrame	(data, 1	); });
+		getMIDIInputHardwarePort(1).setHandleSongSelect(	[](	byte songNumber	){mySongSelect	(songNumber, 1	); });
+		getMIDIInputHardwarePort(1).setHandleTuneRequest(	[](		){myTuneRequest	(1	); });
+		getMIDIInputHardwarePort(1).setHandleClock(	[](		){myClock	(1	); });
+		getMIDIInputHardwarePort(1).setHandleStart(	[](		){myStart	(1	); });
+		getMIDIInputHardwarePort(1).setHandleContinue(	[](		){myContinue	(1	); });
+		getMIDIInputHardwarePort(1).setHandleStop(	[](		){myStop	(1	); });
+		getMIDIInputHardwarePort(1).setHandleActiveSensing(	[](		){myActiveSensing	(1	); });
+		getMIDIInputHardwarePort(1).setHandleSystemReset(	[](		){mySystemReset	(1	); });
 		
-		inPorts[2].setHandleNoteOff(	[](	byte chan, byte pitch, byte velocity	){myNoteOff	(chan, pitch, velocity, 2	); });
-		inPorts[2].setHandleNoteOn(	[](	byte chan, byte pitch, byte velocity	){myNoteOn	(chan, pitch, velocity, 2	); });
-		inPorts[2].setHandleAfterTouchPoly(	[](	byte chan, byte pitch, byte velocity	){myAfterTouchPoly	(chan, pitch, velocity, 2	); });
-		inPorts[2].setHandleControlChange(	[](	byte chan, byte control, byte value	){myControlChange	(chan, control, value, 2	); });
-		inPorts[2].setHandleProgramChange(	[](	byte channel, byte program	){myProgramChange	(channel, program, 2	); });
-		inPorts[2].setHandleTimeCodeQuarterFrame(	[](	byte data	){myTimeCodeQuarterFrame	(data, 2	); });
-		inPorts[2].setHandleSongSelect(	[](	byte songNumber	){mySongSelect	(songNumber, 2	); });
-		inPorts[2].setHandleTuneRequest(	[](		){myTuneRequest	(2	); });
-		inPorts[2].setHandleClock(	[](		){myClock	(2	); });
-		inPorts[2].setHandleStart(	[](		){myStart	(2	); });
-		inPorts[2].setHandleContinue(	[](		){myContinue	(2	); });
-		inPorts[2].setHandleStop(	[](		){myStop	(2	); });
-		inPorts[2].setHandleActiveSensing(	[](		){myActiveSensing	(2	); });
-		inPorts[2].setHandleSystemReset(	[](		){mySystemReset	(2	); });
+		getMIDIInputHardwarePort(2).setHandleNoteOff(	[](	byte chan, byte pitch, byte velocity	){myNoteOff	(chan, pitch, velocity, 2	); });
+		getMIDIInputHardwarePort(2).setHandleNoteOn(	[](	byte chan, byte pitch, byte velocity	){myNoteOn	(chan, pitch, velocity, 2	); });
+		getMIDIInputHardwarePort(2).setHandleAfterTouchPoly(	[](	byte chan, byte pitch, byte velocity	){myAfterTouchPoly	(chan, pitch, velocity, 2	); });
+		getMIDIInputHardwarePort(2).setHandleControlChange(	[](	byte chan, byte control, byte value	){myControlChange	(chan, control, value, 2	); });
+		getMIDIInputHardwarePort(2).setHandleProgramChange(	[](	byte channel, byte program	){myProgramChange	(channel, program, 2	); });
+		getMIDIInputHardwarePort(2).setHandleTimeCodeQuarterFrame(	[](	byte data	){myTimeCodeQuarterFrame	(data, 2	); });
+		getMIDIInputHardwarePort(2).setHandleSongSelect(	[](	byte songNumber	){mySongSelect	(songNumber, 2	); });
+		getMIDIInputHardwarePort(2).setHandleTuneRequest(	[](		){myTuneRequest	(2	); });
+		getMIDIInputHardwarePort(2).setHandleClock(	[](		){myClock	(2	); });
+		getMIDIInputHardwarePort(2).setHandleStart(	[](		){myStart	(2	); });
+		getMIDIInputHardwarePort(2).setHandleContinue(	[](		){myContinue	(2	); });
+		getMIDIInputHardwarePort(2).setHandleStop(	[](		){myStop	(2	); });
+		getMIDIInputHardwarePort(2).setHandleActiveSensing(	[](		){myActiveSensing	(2	); });
+		getMIDIInputHardwarePort(2).setHandleSystemReset(	[](		){mySystemReset	(2	); });
 		
-		inPorts[3].setHandleNoteOff(	[](	byte chan, byte pitch, byte velocity	){myNoteOff	(chan, pitch, velocity, 3	); });
-		inPorts[3].setHandleNoteOn(	[](	byte chan, byte pitch, byte velocity	){myNoteOn	(chan, pitch, velocity, 3	); });
-		inPorts[3].setHandleAfterTouchPoly(	[](	byte chan, byte pitch, byte velocity	){myAfterTouchPoly	(chan, pitch, velocity, 3	); });
-		inPorts[3].setHandleControlChange(	[](	byte chan, byte control, byte value	){myControlChange	(chan, control, value, 3	); });
-		inPorts[3].setHandleProgramChange(	[](	byte channel, byte program	){myProgramChange	(channel, program, 3	); });
-		inPorts[3].setHandleTimeCodeQuarterFrame(	[](	byte data	){myTimeCodeQuarterFrame	(data, 3	); });
-		inPorts[3].setHandleSongSelect(	[](	byte songNumber	){mySongSelect	(songNumber, 3	); });
-		inPorts[3].setHandleTuneRequest(	[](		){myTuneRequest	(3	); });
-		inPorts[3].setHandleClock(	[](		){myClock	(3	); });
-		inPorts[3].setHandleStart(	[](		){myStart	(3	); });
-		inPorts[3].setHandleContinue(	[](		){myContinue	(3	); });
-		inPorts[3].setHandleStop(	[](		){myStop	(3	); });
-		inPorts[3].setHandleActiveSensing(	[](		){myActiveSensing	(3	); });
-		inPorts[3].setHandleSystemReset(	[](		){mySystemReset	(3	); });
+		// getMIDIInputHardwarePort(3).setHandleNoteOff(	[](	byte chan, byte pitch, byte velocity	){myNoteOff	(chan, pitch, velocity, 3	); });
+		// getMIDIInputHardwarePort(3).setHandleNoteOn(	[](	byte chan, byte pitch, byte velocity	){myNoteOn	(chan, pitch, velocity, 3	); });
+		// getMIDIInputHardwarePort(3).setHandleAfterTouchPoly(	[](	byte chan, byte pitch, byte velocity	){myAfterTouchPoly	(chan, pitch, velocity, 3	); });
+		// getMIDIInputHardwarePort(3).setHandleControlChange(	[](	byte chan, byte control, byte value	){myControlChange	(chan, control, value, 3	); });
+		// getMIDIInputHardwarePort(3).setHandleProgramChange(	[](	byte channel, byte program	){myProgramChange	(channel, program, 3	); });
+		// getMIDIInputHardwarePort(3).setHandleTimeCodeQuarterFrame(	[](	byte data	){myTimeCodeQuarterFrame	(data, 3	); });
+		// getMIDIInputHardwarePort(3).setHandleSongSelect(	[](	byte songNumber	){mySongSelect	(songNumber, 3	); });
+		// getMIDIInputHardwarePort(3).setHandleTuneRequest(	[](		){myTuneRequest	(3	); });
+		// getMIDIInputHardwarePort(3).setHandleClock(	[](		){myClock	(3	); });
+		// getMIDIInputHardwarePort(3).setHandleStart(	[](		){myStart	(3	); });
+		// getMIDIInputHardwarePort(3).setHandleContinue(	[](		){myContinue	(3	); });
+		// getMIDIInputHardwarePort(3).setHandleStop(	[](		){myStop	(3	); });
+		// getMIDIInputHardwarePort(3).setHandleActiveSensing(	[](		){myActiveSensing	(3	); });
+		// getMIDIInputHardwarePort(3).setHandleSystemReset(	[](		){mySystemReset	(3	); });
 			
 		usbMIDI.setHandleNoteOff(	[](	byte chan, byte pitch, byte velocity	){myNoteOff	(chan, pitch, velocity, 4	); });
 		usbMIDI.setHandleNoteOn(	[](	byte chan, byte pitch, byte velocity	){myNoteOn	(chan, pitch, velocity, 4	); });

@@ -38,8 +38,8 @@ namespace gc{//global constants
 	const uint16_t numberOfSubsteps = 4096;
 	const int numberOfTracks = 16;
 	
-	const int numberOfMIDIIns = 5;
-	const int numberOfMIDIOuts = 5;
+	const int numberOfMIDIIns = 4; //Includes USB
+	const int numberOfMIDIOuts = 6; //Includes USB:
 	
 	const int numberOfEncoders = 4;
 	
@@ -50,16 +50,17 @@ namespace gc{//global constants
 };
 
 namespace patMem{
-		extern const int patternDataSize;
-		extern const int patternHeaderSize;
-		extern const int stepBlockSize;
-		extern const int barPointerBlockSize;
-		extern const int patternBlockSize;
-		extern const int contentsBlockSize;
-		uint32_t getLastPatternNum();
-		class notePos;
-		class pattern_t;
-		}
+	extern const int patternDataSize;
+	extern const int patternHeaderSize;
+	extern const int stepBlockSize;
+	extern const int barPointerBlockSize;
+	extern const int patternBlockSize;
+	extern const int contentsBlockSize;
+	uint32_t getLastPatternNum();
+	class notePos;
+	class pattern_t;
+	class position;
+	}
 namespace buttons{
 	class buttonEvent {public: enum be : uint8_t{
 		press	= 0,
@@ -106,6 +107,11 @@ namespace LEDfeedback{
 	extern void updateLEDs();
 	extern void stepChaser(LEDSet&);
 	extern void clearAll();
+	extern void sendLEDs();
+	extern void scheduleChange();
+	
+	extern void setActiveHue(const int newHue);
+	extern const char* getActiveHue();
 }
 namespace scrn{
 	// extern const int width;
@@ -129,14 +135,29 @@ namespace modes{
 	// mode& getActiveMode()
 	// void switchToMode(mode newMode, const bool fixed);
 	// const char* getModeString();
-	enum class dialogType{
+	enum class focusedContext{
 		none = 0	,
 		error	,
 		modal	,
 		modalNum	,
+		keyboardPiano	, //Has a name and pointer to function
+		keyboardText	, 
+		heldSetter	, 
 	};
 	
-	extern void setDialog(const dialogType type);//Has an error or a modal popped up
+	const char* const focusedContextNames[] = {
+		"none"	,
+		"error"	,
+		"modal"	,
+		"modalNum"	,
+		"keyboardPiano"	, 
+		"keyboardText"	, 
+		"heldSetter"	, 
+	};
+	
+	extern void setDialog(const focusedContext type);//Has an error or a modal popped up
+		//This dialogue just tells the mode not do do stuff with buttons
+		//DRawing the actual dialogue box and options etc is done separately.
 	extern void clearDialog();//Has an error or a modal popped up
 }
 namespace modal{
@@ -147,9 +168,11 @@ namespace list{
 	class liElemD;
 	template<class s0, class g0> class liElemF;
 	class listController;
+	class listControllerCard;
 	class listControllerFixed;
 	
 	extern list::listControllerFixed editPatt;
+	extern list::listControllerCard cardFiles;
 	extern void setActiveList(listController*);
 	enum settingsNames{
 		editPriority = 0,
@@ -167,9 +190,9 @@ namespace list{
 namespace Sequencing{
 	class track;
 	extern long long getTimeSinceLastSequence();
-	std::vector<list::liElem*>* showPatternsInMemory(uint16_t* offset, uint16_t* previousPatternInList, const uint16_t limit);
+	std::vector<list::liElem*>* showPatternsInMemory(uint32_t& offset, uint32_t& previousPatternInList, const unsigned int limit);
 	extern patMem::pattern_t getActivePattern();
-	extern volatile track& getTrack(const int trackNum);
+	extern track& getTrack(const int trackNum);
 	extern void setTempo(const double newTempo);
 	const int maxTracks = 16;
 	const int processesPerTrack = 16;
@@ -202,6 +225,8 @@ namespace draw{
 	extern void process();
 	extern void processSelection();
 	extern void recordIcon();
+	extern void keyboardButtons();
+	extern void modeGrid(const int xOffset = 10, const int yOffset = 235);
 	extern void buttons(const int x, const int y, const buttons::keySet::ks setToHighlight, const int scale = 1);
 	namespace memoryUsageConstants{
 		extern const int blockHeight; 
@@ -210,7 +235,7 @@ namespace draw{
 	}
 }
 namespace card{
-	const uint16_t maxDirectoryLength = 256;
+	const uint16_t maxDirectoryLength = 1024;
 	extern std::vector<list::liElem*>* listFiles(const uint16_t offset, const uint16_t limit, char* firstName, uint16_t &numberOfPatterns);
 }
 namespace interface{
@@ -231,6 +256,8 @@ namespace interface{
 		extern bool useFancyLEDChaser;
 		extern bool pianoRollFollowPlay;
 		extern bool recordOnlyFromExternal;
+		extern bool givePlaceholderNameToNewPatterns;
+		extern bool incrementNumberToDuplicatePatterns;
 	}
 	namespace pattUtils{
 		//void changeLoadNumber(const int8_t num);
@@ -238,17 +265,19 @@ namespace interface{
 	}
 	
 	namespace pattSwitch{
-		extern uint16_t selectedPattern;
+		extern uint32_t selectedPattern;
 	}
 	namespace arrange{
 		extern const int numberOfBars;
 		extern uint8_t activeArrangement;
-		extern volatile bool useArrangeMode;
+		extern bool useArrangeMode;
 	}
 	namespace all{
 		extern void keyboardOctShift(const int);
 		extern void setTempo(const double);
 		extern void exitError(const int);
+		extern void keyboardTypePress(const int);
+		extern void setKeyboardContext(std::function<void(const char*)> function, std::function<const char*()> currentName, const char* name, const int maxLength);
 	}
 	namespace modals{
 		extern void doModalFunction(const int);
@@ -268,29 +297,6 @@ namespace arrangement{
 namespace functionDescriptions{
 	extern void displayDescriptions();
 }
-
-
-//Logging:
-template <typename T>
-void printDebug(const char* file , int line, T message = "", bool newLine = true) {
-	const float time = (float)millis() / 1000.0;
-	//char timeString[10] = {0};
-	//sprintf(timeString, "%03f", time);
-	char* fileName = strrchr(file, '\\') + 1;
-	Serial.print(fileName ? fileName : file);
-	Serial.print(line);
-	Serial.print(":");
-	Serial.print(time);
-	Serial.print(":");
-	Serial.print(message);
-	if(newLine){
-		Serial.println();
-	}
-}
-
-//Logging (to Serial) with or without newLine:
-#define lg(message) (printDebug(__FILE__, __LINE__, (message)))
-#define lgc(message) (printDebug(__FILE__, __LINE__, (message), false))
 
 extern std::function<void(void)> updateLEDs;
 extern void strcatc(char*, char);

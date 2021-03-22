@@ -8,12 +8,13 @@
 #include "Arduino.h"
 #include "utility.h"
 #include "forwardDec.h"
+#include "screen.h"
 
 namespace modes{
 	
 //const int numberOfModes = 40;
 //class mode;
-dialogType currentDialog = dialogType::none;
+focusedContext currentDialog = focusedContext::none;
 
 mode* listOfModes[numberOfModes] = {nullptr};
 	
@@ -52,96 +53,84 @@ mode* listOfModes[numberOfModes] = {nullptr};
 			}
 
 		void mode::doAction(const buttons::keySet::ks key, int number, const buttons::buttonEvent::be event, const bool heldFuncTriggered){
-			// if(!external){
-				// switch(key){
-					// case buttons::keySet::ks::note:
-						// number = utl::gPFK(number);
-						// break;
-					// default:
-						// break;
-				// }
-			// }
 			//Reset the heldSetter in most cases:
 			if(event == buttons::buttonEvent::release){//Reset held setter:
-				if(!usesHeldSetter || key != heldFuncSetterKeysets[1]){
+				if((!usesHeldSetter || key != heldFuncSetterKeysets[1]) && list::isHeldSetter()){
 					list::clearHeldSetter();
-					// lg("clear");
 				}
 			} 
-			if(currentDialog != dialogType::none){
-				if( //If it is a data, step or note key
-					key == buttons::keySet::step ||
-					key == buttons::keySet::note ||
-					key == buttons::keySet::data
-				){
-					switch(currentDialog){
-						case dialogType::error:
-							interface::all::exitError(number);
-							break;
-						case dialogType::modal:
-							interface::modals::doModalFunction(number);
-							break;
-						case dialogType::modalNum:
-							interface::modals::doModalNumFunction(number);
-							break;
-						default:
-							break;
+			
+			//Determne the context
+			switch(currentDialog){
+				case focusedContext::error:
+					// lg("error");
+					if(event != buttons::buttonEvent::be::press){return;}
+					interface::all::exitError(number);
+					return; //Terminate button press
+				case focusedContext::modal:
+					// lg("modal");
+					if(event != buttons::buttonEvent::be::press){return;}
+					interface::modals::doModalFunction(number);
+					return;//Terminate button press
+				case focusedContext::modalNum:
+					// lg("modalNum");
+					if(event != buttons::buttonEvent::be::press){return;}
+					interface::modals::doModalNumFunction(number);
+					return;//Terminate button press
+				case focusedContext::keyboardPiano:
+					// lg("piano");
+					if(key == buttons::keySet::ks::note || key == buttons::keySet::ks::horizontal){
+						if(key == buttons::keySet::ks::note 	&& event == buttons::buttonEvent::be::press	){	interface::record::startNote(number);}
+						if(key == buttons::keySet::ks::note 	&& event == buttons::buttonEvent::be::release	){	interface::record::endNote(number);}
+						if(key == buttons::keySet::ks::horizontal 	&& event == buttons::buttonEvent::be::press	){	interface::all::keyboardOctShift(number);}
+						return;//Terminate button press
 					}
-				}
-				return;
+					break;//For data buttons / step buttons as piano keyboard context only affects note buttons and horizontal
+				case focusedContext::keyboardText:
+					// lg("keyText");
+					if(event != buttons::buttonEvent::be::press){return;}
+					{
+						int keyValue = 0;
+						switch(key){
+							case buttons::keySet::step:
+								// lg("step");
+								keyValue = gc::keyPos::steps;
+								break;
+							case buttons::keySet::note:
+								// lg("note");
+								keyValue = gc::keyPos::notes;
+								break;
+							case buttons::keySet::data:
+								// lg("data");
+								keyValue = gc::keyPos::datas - 4;//Ignore/skip the four directional buttons
+								break;
+							default:
+								return;//Do nothing
+						}
+						int unshiftedNum = keyValue + number;
+						interface::all::keyboardTypePress(unshiftedNum);
+					}
+					return;//Terminate button press
+				case focusedContext::heldSetter:
+					// lg("heldSetter");
+					if (key == heldFuncSetterKeysets[1] && list::isHeldSetter() && event == buttons::buttonEvent::press){//Use held setter
+						list::useHeldSetter(number);
+						return;//Terminate button press
+					}
+					break;//Carry on with other buttons
+				case focusedContext::none:
+				default:
+					break;
 			}
-			//If the note +  up down buttons should be taken over by recording:
-			if(interface::isRecording() && !interface::settings::recordOnlyFromExternal){
-				if(key == buttons::keySet::ks::note 	&& event == buttons::buttonEvent::be::press	){	interface::record::startNote(number);}
-				if(key == buttons::keySet::ks::note 	&& event == buttons::buttonEvent::be::release	){	interface::record::endNote(number);}
-				if(key == buttons::keySet::ks::vertical 	&& event == buttons::buttonEvent::be::press	){	interface::all::keyboardOctShift(number);}
-				return;
+			// lg("normal:");
+			//Do the normal function
+			if (actions[key][event]){//If there is a function there
+				if(event == buttons::buttonEvent::release && actions[key][buttons::buttonEvent::hold] && heldFuncTriggered){
+					return; //Do not do release function if there is a hold function and it has triggered - this is for editNotes change bar and add note
+				}
+				actions[key][event](number);
 			}
-			if(!allButtonsOverride){
-				// lgc("heldSetter:");
-				// lg(usesHeldSetter);
-				// if(usesHeldSetter){
-					// lgc("keySet1:");
-					// lgc(static_cast<int>(heldFuncSetterKeysets[1]));
-				// }
-				
-				//Activate the held setter function if a heldsetter is pressed
-				if (usesHeldSetter && key == heldFuncSetterKeysets[1] && list::isHeldSetter() && event == buttons::buttonEvent::press){//Use held setter
-					// lg("UseHeldSetter");
-					list::useHeldSetter(number);
-				}
-				//Do the normal function
-				else if (actions[key][event]){//If there is a function there
-					if(event == buttons::buttonEvent::release && actions[key][buttons::buttonEvent::hold] && heldFuncTriggered){
-						return; //Do not do release function if there is a hold function and it has triggered - this is for editNotes change bar and add note
-					}
-					actions[key][event](number);
-				}
-			} else {//All buttons override:
-				if(key == buttons::keySet::ks::vertical || key == buttons::keySet::ks::horizontal){
-					if (actions[key][event]){
-						actions[key][event](number);
-					}
-				}
-				else if (actions[buttons::keySet::step][event]){//If there is a step function there when using all buttons override
-					int newNum;
-					switch (key){
-						case buttons::keySet::step:
-							newNum = number;
-							break;
-						case buttons::keySet::note:
-							newNum = number + gc::keyPos::notes;
-							break;
-						case buttons::keySet::data:
-							newNum = number + gc::keyPos::vertical;
-							break;
-						default:
-							newNum = number;
-					}
-					// lg(newNum);
-					actions[buttons::keySet::step][event](newNum);
-				}
-			}
+			
 		}
 		bool mode::allowChase() const {
 			return enableChase;
@@ -159,7 +148,9 @@ mode* listOfModes[numberOfModes] = {nullptr};
 			return doNotReturn;
 		}
 		void mode::updateDisplay(){
+			if(clearScreen)	{scrn::blankScreen();}
 			screenDisplayFunc();
+			if(labelled)	{draw::drawMode();}
 			list::setActiveList(activeList);
 			updateLEDs();
 		}
@@ -170,10 +161,10 @@ mode* listOfModes[numberOfModes] = {nullptr};
 			if(LEDDisplays[buttons::keySet::vertical	]){LEDDisplays[buttons::keySet::vertical	](LEDfeedback::getLEDSet(buttons::keySet::vertical	));}
 			if(LEDDisplays[buttons::keySet::horizontal	]){LEDDisplays[buttons::keySet::horizontal	](LEDfeedback::getLEDSet(buttons::keySet::horizontal	));}
 			if(LEDDisplays[buttons::keySet::data	]){LEDDisplays[buttons::keySet::data	](LEDfeedback::getLEDSet(buttons::keySet::data	));}
+			LEDfeedback::showMode(LEDfeedback::getLEDSet(buttons::keySet::mode));
+			LEDfeedback::scheduleChange();
 		}
 		void mode::switchTo(){
-			if(clearScreen)	{scrn::blankScreen();}
-			if(labelled)	{draw::drawMode();}
 			updateDisplay();
 		}
 		
@@ -211,7 +202,7 @@ mode* buttons[gc::keyNum::modes] = {
 	&editNotes	,
 	&editSteps	,
 	&editPattern	,
-	&editCC	,
+	&editDataEvent	,
 	&patternProcess	,
 	&mute	,
 	&transpose	,
@@ -225,6 +216,10 @@ mode* buttons[gc::keyNum::modes] = {
 	&themeEdit	,
 	&modeSelect	,
 };
+
+extern mode& getModeFromButtons(const int i){
+	return (i < 16 && i >= 0) ? *buttons[i] : editNotes;
+}
 
 void forEachMode(const std::function<void(mode&)> func){
 	for (auto& m : listOfModes){
@@ -277,6 +272,7 @@ void switchToMode(mode& newMode, const bool setLast){
 	if(setLast){
 		lastMode = &newMode;
 	}
+	clearDialog();
 }
 
 void switchToMode(const int pos, const bool fixed){
@@ -294,11 +290,14 @@ const char* getModeString(){
 	return getActiveMode().getName();
 }
 
-void setDialog(const dialogType type){//Has an error or a modal popped up
+void setDialog(const focusedContext type){//Has an error or a modal popped up
 	currentDialog = type;
+	lg(focusedContextNames[static_cast<int>(currentDialog)]);
 }
 void clearDialog(){
-	currentDialog = dialogType::none;
+	scrn::setScreenLock(false);
+	currentDialog = focusedContext::none;
+	getActiveMode().updateDisplay();
 }
 
 void encoderAllocator(const int number, const int change){

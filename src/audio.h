@@ -48,12 +48,12 @@ extern AudioControlSGTL5000     sgtl5000_1	;     //xy=350.20001220703125,185.199
 class audioUnit {
 	public:
 		// virtual audioUnit();
-		virtual void noteOn(int num, int velocity) volatile;
-		virtual void noteOff(int num) volatile;
-		virtual void allNotesOff() volatile;
+		virtual void noteOn(int num, int velocity);
+		virtual void noteOff(int num);
+		virtual void allNotesOff();
 };
 extern float getHzFromNoteNumber(float noteNumber, int frequencyOfA = 440);
-extern void setup();
+extern void begin();
 
 }// end namespace audio
 

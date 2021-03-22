@@ -4,6 +4,7 @@
 #include "setVarAfterDelay.h"  
 #include "forwarddec.h"  
 #include "list.h"  
+#include "blocks.h"  
 //#include <typeinfo>
 
 namespace list{
@@ -19,7 +20,7 @@ namespace list{
 	
 	//Functions taking a number:
 	template<> void sF<int>	::operator()(int n){(void)(n)	; pa();	}
-	template<> void sF<volatile bool*>	::operator()(int n){*parameter = !*parameter;(void)(n)	; pa();	}
+	template<> void sF<bool*>	::operator()(int n){*parameter = !*parameter;(void)(n)	; pa();	}
 	template<> void sF<voidvoid>	::operator()(int n){parameter();(void)(n)	; pa();	}
 	template<> void sF<voidint>	::operator()(int n){
 	//This gap here due to ealstic tabstops
@@ -32,10 +33,13 @@ namespace list{
 		}
 		pa();
 	}
+	// bool sF::shouldBeHeld(){
+		// return m_shouldBeHeld;
+	// }
 	
 	//Functions taking no number:
 	template<> void sF<>	::operator()(){	}
-	template<> void sF<volatile bool*>	::operator()(){*parameter = !*parameter;	pa();	}
+	template<> void sF<bool*>	::operator()(){*parameter = !*parameter;	pa();	}
 	template<> void sF<voidvoid>	::operator()(){parameter();	pa();	}
 	template<> void sF<voidint>	::operator()(){	}
 	
@@ -49,21 +53,11 @@ namespace list{
 	template<> void gF<boolvoid>::get(char* str) const{
 		strcpy(str, values[func()]);
 		}
-	template<> void gF<volatile bool*>::get(char* str) const{
+	template<> void gF<bool*>::get(char* str) const{
 		strcpy(str, values[*func]);
 		}
 	template<> void gF<int>::get(char* str) const{
 		}
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
 		
 	void deleteList(std::vector<list::liElem*>* theListVec){//Delete all the elements in a list and the list itself
 		for(int16_t i = theListVec->size()-1; i>=0; i--){
@@ -72,22 +66,20 @@ namespace list{
 		delete theListVec;
 	}
 	
-	
-	
-	
-	
-	
-	
 	void clearHeldSetter(){
 		// lg("ClearHeldSetter");
 		heldListItem = nullptr;
+		modes::clearDialog();
 	}
 	
+	//Set the active held setter function
 	void setHeldSetter(std::function<void(int)> item){
 		// lg("SetHeldSetter");
 		heldListItem = item;
+		modes::setDialog(modes::focusedContext::heldSetter);
 	}
 	
+	//Call the active held setter function with a buttonpress
 	void useHeldSetter(const int button){
 		// lgc("usHeSe:");
 		// lg(button);
@@ -117,7 +109,9 @@ namespace list{
 		if(activeList){
 			activeliElem = activeList->moveTo(button);
 		}
-		setHeldSetter(activeliElem->getSetter());
+		if(activeliElem->shouldBeHeld()){
+			setHeldSetter(activeliElem->getSetter());
+		}
 	}
 	
 	void moveList(const int dir){//Up down
@@ -140,5 +134,47 @@ namespace list{
 			activeList->draw();
 		}
 	}
+
+
+			listControllerPatMem::listControllerPatMem(std::vector<list::liElem*>* c_liElems, const listType c_type, const int c_yOffset, const int c_xOffset, const int c_clearWidth, const bool c_allowScroll, const int c_maxLines, const int c_dataXCoord, const bool c_showActive) : 
+				listController(c_liElems, c_type, c_yOffset, c_xOffset, c_clearWidth, c_allowScroll, c_maxLines, c_dataXCoord, c_showActive){}
+			
+			void listControllerPatMem::draw(){
+				std::vector<list::liElem*>* theListVec = Sequencing::showPatternsInMemory(interface::pattSwitch::selectedPattern, previousPatternInList, maxLines);
+				//std::vector<list::liElem*>* theListVec = new std::vector<list::liElem*>;
+				length = (*theListVec).size();
+				liElems = theListVec;
+				listController::draw();
+				list::deleteList(theListVec);
+				liElems = nullptr;
+			}
+			
+			void listControllerPatMem::listDown(){
+				if (interface::pattSwitch::selectedPattern < blocks::getLastPatternBlock()){
+					interface::pattSwitch::selectedPattern ++;
+					draw();
+					}
+				}
+				
+			void listControllerPatMem::listUp(){
+				if (interface::pattSwitch::selectedPattern > 0){
+					interface::pattSwitch::selectedPattern = previousPatternInList;
+					draw();
+					}
+				}
+				
+			liElem* listControllerPatMem::listMove(const int dir){
+				if(dir == 1){
+					listUp();
+					}
+				else if (dir == -1){
+					listDown();
+					}
+					return nullptr;
+				}
+			liElem* listControllerPatMem::moveTo(const int pos){
+				//Does not matter?
+				return nullptr;
+				}
 
 }//End namespace

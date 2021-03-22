@@ -1,6 +1,8 @@
 #ifndef functionDescriptions_h
 #define functionDescriptions_h
 
+//These are the functions that are called directly from the buttons in each of the mode. They will most likely not be callable by the user through any other means and instead, the functions called by these would probably be more useful.
+
 #include "for_map.h"
 //#include <unordered_map>
 //#include "C:\Program Files (x86)\Arduino\hardware\tools\arm\arm-none-eabi\include\c++\5.4.1\bits\unordered_map.h"
@@ -9,10 +11,12 @@ namespace functionDescriptions{
 	
 	const char* jumpToListItem = "ERROR JTLI";
 	
-	forMap::for_map<modes::mode*, const char*, 15> jumpToListItemMap = {{{
+	/*EXTMEM*/ forMap::for_map<modes::mode*, const char*, 16> jumpToListItemMap = {{{
 		{&modes::editSteps	, "Set active parameter"	},
 		{&modes::editPattern	, "Set active parameter"	},
 		{&modes::patternProcess	, "Jump to list item"	},
+		{&modes::process	, "Jump to list item"	},
+		{&modes::editDataEvent	, "Jump to list item"	},
 		{&modes::copy	, "Jump to list item"	},
 		{&modes::quantise	, "Jump to list item"	},
 		{&modes::debug	, "Jump to list item"	},
@@ -27,7 +31,7 @@ namespace functionDescriptions{
 	}}};
 	
 	//std::array<std::pair<voidint, const char*>, 6> 
-	forMap::for_map<voidint, const char*, 48> funcMap = {{{
+	/*EXTMEM*/ forMap::for_map<voidint, const char*, 48> funcMap = {{{
 		//{interface::editNotes::addNoteOnStep	, "Change the current step and add a note"	},
 		{interface::editNotes::addNoteOnStep	, "Change the current step and add a note"	},
 		{interface::editNotes::setSubstepOrEnterBar	, "Change the active bar and exit substep or enter a substep"	},
@@ -55,7 +59,6 @@ namespace functionDescriptions{
 		{interface::performance::tempoChangeSmall	, "Change tempo by 0.01"	},
 		{interface::mute::toggleMuteTrack	, "Mute tracks"	},
 		{interface::mute::toggleMuteNote	, "Mute notes"	},
-		{interface::pattUtils::enterPatternName	, "Edit pattern name"	},
 		{interface::all::exitError	, "Return to previous mode"	},
 		{interface::modals::doModalFunction	, "Select and perform option"	},
 		{interface::modals::doModalNumFunction	, "Select and perform option"	},
@@ -83,6 +86,7 @@ namespace functionDescriptions{
 	const int lineHeight = 22;
 	
 	void displayDescriptions(){
+		scrn::setTextColor(scrn::getThemeColour(scrn::td::text));
 		int counter = 0;
 		modes::getActiveMode().forEachFunction(
 			[&counter](buttons::keySet::ks k, buttons::buttonEvent::be e, voidint f){

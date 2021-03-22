@@ -19,7 +19,7 @@ namespace scrn{
 	displayVar track	("track:"	,	420 ,	0,	40 ,	60,	{{false}}, scrn::td::bg, scrn::td::fg);
 	displayVar tempo	("tempo:"	,	310,	0,	50  ,	110,	{{false}}, scrn::td::bg, scrn::td::fg);
 	//PattUtil: 	name	x		y	labelwidth	blankwidth	modes
-	displayVar pattName	("Name:"	,	5,	topOffset,	45,	135,	{{modes::patternUtils, modes::patternSwitch, modes::patternProcess, modes::copy, modes::quantise, modes::editPattern, modes::rename}});
+	displayVar pattName	("Name:"	,	5,	topOffset,	45,	135,	{{modes::patternUtils, modes::patternSwitch, modes::patternProcess, modes::copy, modes::quantise, modes::editPattern}});
 	displayVar pattNum	("#:"	,	5 + 135,	topOffset,	20,	80,	{{modes::patternUtils, modes::patternSwitch, modes::patternProcess, modes::copy, modes::quantise, modes::editPattern}});
 	displayVar sdStatus	(""	,	300,	topOffset,	0,	240,	{{modes::patternUtils}});
 	//Other: 	name	x		y	labelwidth	blankwidth	modes

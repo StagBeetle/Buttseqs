@@ -114,6 +114,9 @@ namespace scrn{
 			uint8_t getColourChannelValue(const int editColourDescriptor, const int editColourChannel) const {
 				return colours[editColourDescriptor].getColourChannelValue(editColourChannel);
 			}
+			void copyToArray(uint8_t* out) const{
+				memcpy((void*)out, this, 3);
+			}
 	};
 	
 	
@@ -127,12 +130,12 @@ namespace scrn{
 
 
 	extern void brightness(uint8_t data);
-	extern void setup();
+	extern void begin();
 	extern void update();
 	extern void fillScreen(const colour c);
 	extern void blankScreen();
 	extern void writeFillRect(const int16_t x, const int16_t y, const int16_t w, const int16_t h, const colour c);
-	extern void writeDrawRect(const int16_t x, const int16_t y, const int16_t w, const int16_t h, const colour c);
+	extern void writeEdgeRect(const int16_t x, const int16_t y, const int16_t w, const int16_t h, const colour c);
 	extern void write(const int16_t x, const int16_t y, const char *str);
 	extern void write(const int16_t x, const int16_t y, int num);
 	extern void write(const int16_t x, const int16_t y, double num);
@@ -149,8 +152,12 @@ namespace scrn{
 	extern void setTextSize(uint8_t size);
 	extern void setTextWrap(boolean w);
 	extern void write(uint8_t character);
+	extern void print(const char* string);
 	extern void drawChar(const int16_t x, const int16_t y, char c, const uint16_t color, const uint16_t bg, uint8_t size);
 	extern void setScreenLock(const bool status); //So notifications stay on the screen
+	extern bool isScreenLocked();
+	
+	extern bool isScreenUpdating();
 	
 	/*--------------------------------------------------------Screen variables Stuff-----------------------------------------------*/
 	class displayVar{
@@ -166,42 +173,11 @@ namespace scrn{
 			char label[maxLabelLength+2] = {0};
 			//const std::function<void(void)> preDrawFunc;
 		public:
-			displayVar(const char* c_label, const uint16_t c_xcoord, const uint16_t c_ycoord, const uint16_t c_labelMinWidth, const uint16_t c_blankWidth, const modes::modeField c_activeModes, const td::themeDescriptor c_textColour = td::text, const td::themeDescriptor c_bgColour = td::bg) : 
-				xcoord(c_xcoord), 
-				ycoord(c_ycoord),
-				labelWidth(c_labelMinWidth),
-				blankWidth(c_blankWidth),
-				activeModes(c_activeModes),
-				textColour(c_textColour),
-				bgColour(c_bgColour){
-					int length = min(strlen(c_label), maxLabelLength);
-					strncpy(label, c_label, length);
-				}
-			void update(const char* value){
-				if(activeModes.isInField(modes::getActiveMode())){
-					writeFillRect(xcoord, ycoord, blankWidth, font::getTextHeight(), getThemeColour(bgColour));
-					setTextColor(getThemeColour(textColour));
-					if(strlen(label)){
-						write(xcoord, ycoord, label);
-						}
-					// lg(value);
-					write(xcoord + labelWidth, ycoord, value);
-				}
-			}
-			void update(long long int value){
-				char buffer[10] = {0};
-				sprintf(buffer, "%lld", value);
-				//itoa(value, buffer, 10);
-				update(buffer);
-			}
-			void showActive(){
-				const uint8_t indicatorSize = 5;
-				writeFillRect(xcoord-indicatorSize, ycoord, indicatorSize, font::getTextHeight(), getThemeColour(textColour));
-			}
-			void showInactive(){
-				const uint8_t indicatorSize = 5;
-				writeFillRect(xcoord-indicatorSize, ycoord, indicatorSize, font::getTextHeight(), getThemeColour(bgColour));
-			}
+			displayVar(const char* c_label, const uint16_t c_xcoord, const uint16_t c_ycoord, const uint16_t c_labelMinWidth, const uint16_t c_blankWidth, const modes::modeField c_activeModes, const td::themeDescriptor c_textColour = td::text, const td::themeDescriptor c_bgColour = td::bg);
+			void update(const char* value);
+			void update(long long int value);
+			void showActive();
+			void showInactive();
 		};
 		
 	extern int topOffset; //Size of mode bar at top of screen

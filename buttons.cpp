@@ -7,27 +7,29 @@
 #include "mode.h"
 #include "buttons.h"
 
+#include <SPI.h>
+
 namespace buttons{
 	//press release hold
 	extern std::function<void()> allButtons[gc::keyNum::extras][buttons::buttonEvent::max]; //Defined in mode definitions.
 	
 	void switchToMode(const int num, const buttons::buttonEvent::be event){
 		static long long lastRelease = millis();
-		lg(" ");
+		//lg(" ");
 		if(event == buttons::buttonEvent::press){
-			lg("press");
+			//lg("press");
 			modes::switchToMode(num);
 			scheduled::clearEvent(scheduled::lOE::mode);
 		}
 		
 		if(event == buttons::buttonEvent::release){
-			lg("release");
+			//lg("release");
 			if(millis() - lastRelease > interface::settings::doubleClickSpeed){
-				lg("slow");
+				//lg("slow");
 				scheduled::newEvent(scheduled::lOE::mode, modes::reset, interface::settings::doubleClickSpeed);
 			} else {
 				scheduled::clearEvent(scheduled::lOE::mode);
-				lg("fast");
+				//lg("fast");
 			}
 			lastRelease = millis();
 		}
@@ -80,9 +82,6 @@ namespace buttons{
 		}
 	}
 	
-	const pin shiftInSerPar = 2;
-	const pin shiftInClock  = 3;
-	const pin shiftInData   = 4;
 	std::function<void(void)> onButtonEvent = nullFunc;
 	const int numberOfButtons = gc::keyNum::total;
 	
@@ -105,7 +104,7 @@ namespace buttons{
 				m_isPressed = isPressed;
 				if(!m_wasPressed && m_isPressed && millis() - m_timeSincePressed > debounceTime)
 					{ //If the button was not pressed, but it has now been pressed but not pressed recently
-					//lgc("pressed:");lg(buttonNumber);
+					// lgc("pressed:");lg(buttonNumber);
 					buttonAllocator(buttonNumber, buttons::buttonEvent::press, false);
 					m_wasPressed = true; //Set the button to pressed
 					m_timeSincePressed = millis(); //reset the timer
@@ -133,24 +132,8 @@ namespace buttons{
 	int button::buttonCounter = 0;
 	
 	button buttonArray	[numberOfButtons];
-	// button dataButtonArray	[matrix::numberOfButtonsPerMatrix];
-	// button modeButtonArray	[matrix::numberOfButtonsPerMatrix];
-	// button extraButtonArray	[gc::keyNum::extras];
 	
-	void setup(const std::function<void(void)> callback){
-		// shiftInSerPar = serPar;
-		// shiftInClock  = clock;
-		// shiftInData   = data;
-		onButtonEvent = callback;
-		pinMode(shiftInClock,OUTPUT);
-		pinMode(shiftInSerPar,OUTPUT);
-		pinMode(shiftInData,INPUT_PULLUP);
-		digitalWrite(shiftInSerPar,LOW); //Set the register read the buttons
-		digitalWrite(shiftInClock,LOW); //Set it low ready for clock. Should be low anyway
-		}
-		 
-	const byte shiftDelay = 1;
-	
+	//Timing debugging:
 	long long timeAtLastButtonCheck = 0;
 	long long longestTimeSinceCheck = 0;
 	
@@ -160,34 +143,55 @@ namespace buttons{
 		return longestTimeSinceCheck_temp;
 	}
 	
+	//For debug: control
 	volatile bool buttonsDEBUG[numberOfButtons] = {0};//Set by serial
+	void setButton(const int num, const int status){
+		buttonsDEBUG[num] = status;
+	}
 	
-	volatile bool buttonsOutput[numberOfButtons] = {0};//Printed to Serial
+	//HARDWARE setup:
+	auto AUXSPIBUS = SPI1;
+	SPISettings shiftreg(2000000, LSBFIRST, SPI_MODE3); 
+	const uint8_t BUTTONCS = 2;
 	
-	void loop(const bool recordModeNotesOnly){//recordModeNotesOnly is a special thing for record mode to stop jitter (I hope)
+	const int numberOfShiftRegisters = (numberOfButtons + 7) / 8;
+	uint8_t buttonShiftArray[numberOfShiftRegisters] = {0};
+	
+	PROGMEM void begin(const std::function<void(void)> callback){
+		onButtonEvent = callback;
+		AUXSPIBUS.begin();
+		AUXSPIBUS.setMISO(39);
+		pinMode(BUTTONCS, OUTPUT);
+		digitalWrite(BUTTONCS, 0);
+		}
+		 
+		 
+	//HARDWARE loop
+	void loop(const bool recordModeNotesOnly){//recordModeNotesOnly does nothing. DELET THIS
+		
+		//For timing checks:
+		// longestTimeSinceCheck = max(longestTimeSinceCheck, micros() - timeAtLastButtonCheck);
+		// timeAtLastButtonCheck = micros();
+	
+		//SPI the data:
+		digitalWrite(BUTTONCS, 1);
+		AUXSPIBUS.beginTransaction(shiftreg);
+		for(int i = 0; i < numberOfShiftRegisters; i++){
+			buttonShiftArray[i] = AUXSPIBUS.transfer(0);
+		}
+		AUXSPIBUS.endTransaction();
+		digitalWrite(BUTTONCS, 0);
 
-		longestTimeSinceCheck = max(longestTimeSinceCheck, micros() - timeAtLastButtonCheck);
-		timeAtLastButtonCheck = micros();
-		digitalWrite(shiftInSerPar, HIGH); //Set the register to serial read mode
-		delayMicroseconds(shiftDelay); //Wait a bit - may not be necessary
-		
+		//Process the bytes into a neat little array
 		for (int b = 0; b<numberOfButtons; b++){//For each button
-			//if((b >= gc::keyPos::notes && b < gc::keyPos::horizontal) || !recordModeNotesOnly){//If a note button or just a normal mode:
-			volatile bool isPressed = !digitalRead(shiftInData);
-				
-				//b.m_checkPressed(isPressed);// || pythonButtons::pythonButtons[i]); //If the button is held down, level is low
-			buttonArray[b].m_checkPressed(buttonsDEBUG[b] || isPressed); 
-			//buttonsOutput[b] = isPressed;
-			//if(isPressed){lg(b);}
-			//}
-			digitalWrite(shiftInClock, LOW); // clock the chip
-			delayMicroseconds(shiftDelay); ////Wait a bit - may not be necessary
-			digitalWrite(shiftInClock, HIGH); //Clock the chip
-			delayMicroseconds(shiftDelay); //Wait a bit - may not be necessary
-			}
-		digitalWrite(shiftInClock,  LOW); //Set the chip low
-		digitalWrite(shiftInSerPar, LOW); //Set the register back to parallel mode
+			const int index = b/8;
+			const int position = b%8;
+			const bool isPressed = !bitRead(buttonShiftArray[index], position);
 		
+			buttonArray[b].m_checkPressed(/*buttonsDEBUG[b] || */isPressed); 
+			// if(isPressed)
+				// {Serial.println(b);}
+		}
 	}
 		
 }//end namespace

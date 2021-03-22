@@ -10,10 +10,49 @@
 #define TFT_CS 10
 
 ILI9488_t3 tft = ILI9488_t3(&SPI, TFT_CS, TFT_DC, TFT_RST);
-//ILI9488_t3 tft = ILI9488_t3(&SPI, 255, 255, 255);
+
+#define USEDMAFORSCREEN
 
 namespace scrn{
-	const int brightnessPin = A0;
+	const int brightnessPin = 33;
+	
+	//displayVar::
+		displayVar::displayVar(const char* c_label, const uint16_t c_xcoord, const uint16_t c_ycoord, const uint16_t c_labelMinWidth, const uint16_t c_blankWidth, const modes::modeField c_activeModes, const td::themeDescriptor c_textColour, const td::themeDescriptor c_bgColour) : 
+			xcoord(c_xcoord), 
+			ycoord(c_ycoord),
+			labelWidth(c_labelMinWidth),
+			blankWidth(c_blankWidth),
+			activeModes(c_activeModes),
+			textColour(c_textColour),
+			bgColour(c_bgColour){
+				int length = min(strlen(c_label), maxLabelLength);
+				strncpy(label, c_label, length);
+			}
+		void displayVar::update(const char* value){
+			if(activeModes.isInField(modes::getActiveMode())){
+				writeFillRect(xcoord, ycoord, blankWidth, font::getTextHeight(), getThemeColour(bgColour));
+				setTextColor(getThemeColour(textColour));
+				if(strlen(label)){
+					write(xcoord, ycoord, label);
+					}
+				// lg(value);
+				write(xcoord + labelWidth, ycoord, value);
+			}
+		}
+		void displayVar::update(long long int value){
+			char buffer[10] = {0};
+			sprintf(buffer, "%lld", value);
+			//itoa(value, buffer, 10);
+			update(buffer);
+		}
+		void displayVar::showActive(){
+			const uint8_t  indicatorSize = 5;
+			writeFillRect(xcoord-indicatorSize, ycoord, indicatorSize, font::getTextHeight(), getThemeColour(textColour));
+		}
+		void displayVar::showInactive(){
+			const uint8_t indicatorSize = 5;
+			writeFillRect(xcoord-indicatorSize, ycoord, indicatorSize, font::getTextHeight(), getThemeColour(bgColour));
+		}
 	
 	theme mainTheme = {{
 		{ 50,  50,  50},	//BG
@@ -38,28 +77,22 @@ namespace scrn{
 	
 	/*--------------------------------------------------------Send Stuff-----------------------------------------------*/
 	
-	enum class iconIndex : uint8_t{
-		steps	= 0,
-		notes	= 1,
-		vertical	= 2,
-		horizontal	= 3,
-		data	= 4,
-		press	= 5,
-		release	= 6,
-		hold	= 7,
-	};
-	
-	bool screenLock = false; //Unused
-	bool hasChanged = false; //Unused
-	
-	const uint8_t eventOffset = static_cast<uint8_t>(iconIndex::press);
 
+
+	
+	bool screenLock = false;
+	bool hasChanged = false;
+	
 	void brightness(uint8_t data){
 		analogWrite(brightnessPin, data);
 	}
 	
-	void setup(){
-		brightness(255);
+	#ifdef USEDMAFORSCREEN
+		uint16_t* frameBuffer = static_cast<uint16_t*>(malloc(480*320*2));
+	#endif
+	
+	PROGMEM void begin(){
+		brightness(128);
 		tft.begin();
 		tft.setRotation(3);
 		tft.fillScreen(ILI9488_BLACK);
@@ -68,46 +101,67 @@ namespace scrn{
 		tft.setFont(Arial_12);
 		tft.setOrigin(0,0);
 		//tft.invertDisplay(1);
-		tft.useFrameBuffer(true);
-		//tft.useFrameBuffer(true); 
+		#ifdef USEDMAFORSCREEN
+			// void* frameBuffer = malloc(480*320*2);
+			tft.setFrameBuffer(frameBuffer);
+			tft.useFrameBuffer(true);
+		#endif
 	}
 	
 	void update(){
-		if(screenLock){return;}
+		//if(screenLock){return;}
 		if(hasChanged){
-			//tft.updateScreen();
-			tft.updateScreenAsync(true);
+			#ifdef USEDMAFORSCREEN
+				if(tft.asyncUpdateActive()){
+					return; //try again next time
+				}
+				tft.waitUpdateAsyncComplete();
+				//cli();
+				tft.updateScreenAsync(false);
+			#else
+				tft.updateScreen();
+			#endif
 			hasChanged = false;
 		}
 	}
+	
+	bool isScreenUpdating(){
+		return tft.asyncUpdateActive();
+	}
 		
 	void fillScreen(const colour c){
+		if(screenLock){return;}
 		tft.fillScreen(c.gSC());
 		hasChanged = true;
 	}
 	
 	void blankScreen(){
+		if(screenLock){return;}
 		fillScreen(getThemeColour(scrn::td::bg));
 		hasChanged = true;
 	}
 
 	void writeFillRect(const int16_t x, const int16_t y, const int16_t w, const int16_t h, const colour c){
+		if(screenLock){return;}
 		tft.fillRect(x, y, w, h, c.gSC());
 		hasChanged = true;
 	}
 	
-	void writeDrawRect(const int16_t x, const int16_t y, const int16_t w, const int16_t h, const colour c){
+	void writeEdgeRect(const int16_t x, const int16_t y, const int16_t w, const int16_t h, const colour c){
+		if(screenLock){return;}
 		tft.drawRect(x, y, w, h, c.gSC());
 		hasChanged = true;
 	}
 	
 	void write(const int16_t x, const int16_t y, const char *str){
+		if(screenLock){return;}
 		tft.setCursor(x, y);
 		tft.print(str);
 		hasChanged = true;
 	}
 	
 	void write(const int16_t x, const int16_t y, int num){
+		if(screenLock){return;}
 		char string[6] = {0};
 		sprintf(string, "%i", num);
 		write(x, y, string);
@@ -115,6 +169,7 @@ namespace scrn{
 	}
 	
 	void write(const int16_t x, const int16_t y, double num){
+		if(screenLock){return;}
 		char string[32] = {0};
 		sprintf(string, "%f", num);
 		write(x, y, string);
@@ -122,43 +177,58 @@ namespace scrn{
 	}
 	
 	void setTextColor(const colour c){
+		if(screenLock){return;}
 		tft.setTextColor(c.gSC());
 		hasChanged = true;
 	}
 	
 	void writeFastVLine(const int16_t x, const int16_t y, const int16_t h, const colour c){
+		if(screenLock){return;}
 		tft.drawFastVLine(x, y, h, c.gSC());
 		hasChanged = true;
 	}
 	
 	void writeFastHLine(const int16_t x, const int16_t y, const int16_t w, const colour c){
+		if(screenLock){return;}
 		tft.drawFastHLine(x, y, w, c.gSC());
 		hasChanged = true;
 	}
 	void writeLine(const int16_t x, const int16_t y, const int16_t x2, const int16_t y2, const colour c){
+		if(screenLock){return;}
 		tft.drawLine(x, y, x2, y2, c.gSC());
 		hasChanged = true;
 	}
 	void writeFillTri(const int16_t x0, const int16_t y0, const int16_t x1, const int16_t y1, const int16_t x2, const int16_t y2, const colour c){
+		if(screenLock){return;}
 		tft.fillTriangle(x0, y0, x1, y1, x2, y2, c.gSC());
 		hasChanged = true;
 	}
 	void writeEdgeTri(const int16_t x0, const int16_t y0, const int16_t x1, const int16_t y1, const int16_t x2, const int16_t y2, const colour c){
+		if(screenLock){return;}
 		tft.drawTriangle(x0, y0, x1, y1, x2, y2, c.gSC());
 		hasChanged = true;
 	}
 	void writePixel(const int16_t x, const int16_t y, const colour c){
+		if(screenLock){return;}
 		tft.drawPixel(x, y, c.gSC());
 		hasChanged = true;
 	}
 
 	void drawCircle(const int x, const int y, const int r, const colour c){
+		if(screenLock){return;}
 		tft.drawCircle(x, y, r, c.gSC());
 		hasChanged = true;
 	}
 	
 	void drawFillCircle(const int x, const int y, const int r, const colour c){
+		if(screenLock){return;}
 		tft.fillCircle(x, y, r, c.gSC());
+		hasChanged = true;
+	}
+	
+	void print(const char* string){
+		if(screenLock){return;}
+		tft.print(string);
 		hasChanged = true;
 	}
 
@@ -168,8 +238,17 @@ namespace scrn{
 	void write(uint8_t character){}
 	void drawChar(const int16_t x, const int16_t y, char c, const uint16_t color, const uint16_t bg, uint8_t size){}
 	
+	
+	
 	void setScreenLock(const bool status){
+		// if(status){//Update before locking
+			// update();
+		// }
 		screenLock = status;
+	}
+	
+	extern bool isScreenLocked(){
+		return screenLock;
 	}
 
 	uint8_t to255(float v) {

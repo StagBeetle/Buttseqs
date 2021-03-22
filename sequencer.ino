@@ -1,9 +1,21 @@
+/**
+ * @file sequencer.ino
+ *
+ * @mainpage Hardware Sequencer
+ * 
+ */
+ 
+#include "TeensyDebug.h"
+#pragma GCC optimize ("O0")
+ 
+// #define USESERIAL
+
 #include "compatibility.h"	//Stuff to make libraries work
 #include "forwarddec.h"	//Forward declarations and global parameters
 #include "scheduled.h"	//Scheduling library
 #include "Utility.h"	//Little helpful tools 
 //#include "Midi.h"	//All that MIDI shit
-#include "clockReceive.h"	//Midi clock receiving - faulty
+//#include "clockReceive.h"	//Midi clock receiving - faulty
 
 #include "debug.h"	//debug routines
 
@@ -29,6 +41,9 @@
 #include "forwarddec2.h"	//Forward declarations
 #include "buttons.h"	//To check the buttons
 #include "processData.h"	//The functions and intiialisers and parameter names for the processes
+#include "MIDIInputOutput.h"	//MIDI ports
+
+//Below here, they need .cpp files
 #include "interface.h"	//The functions triggered by the buttons
 #include "functionDescriptions.h"	//Description of Functions
 #include "functionlists.h"	//Lists of functions with names for certains modes
@@ -38,114 +53,125 @@
 #include "screenvars.h"	//Define the screenvars
 #include "midi_handlers.h"	//MIDI handlers
 
-
 // jmp_buf env;
 
-
-const bool enableStartup = false; //If program waits for Python input before starting
-
-void setup(){
-	if(enableStartup){
-		Serial.begin(9600); //USB so disregard number
-		while(true){//Wait for input before starting
-			if (Serial.available()) {
-				uint8_t incomingByte = Serial.read();
-				if (incomingByte == 7){
-					break;
-				}
-			}
-		}
-	}
+PROGMEM void setup(){
+	debug.begin(Serial);
+	
+	#ifdef USESERIAL
 	Serial.println("Booting up...");
+	Serial.println("Intialising screen...");
+	#endif
+	scrn::begin();
+	scrn::setTextColor({255,255,255});
+	scrn::print("Lynxwave Buttseqs");
+	scrn::print("Screen OK");
+	#ifdef USESERIAL
 	Serial.println("Intialising buttons...");
-	buttons::setup(LEDfeedback::updateLEDs);
+	#endif
+	scrn::print("Intialising buttons...");
+	buttons::begin(LEDfeedback::updateLEDs);
 	// //pythonButtons::setup();
 	
 	// updateLEDs = LEDfeedback::updateLEDs;
-	
+	#ifdef USESERIAL
 	Serial.println("Intialising card...");
-	card::setup();
+	#endif
+	scrn::print("Intialising card...");
+	card::begin();
+	#ifdef USESERIAL
 	Serial.println("Intialising MIDI and sequencing...");
-	MIDIhandlers::setup();
-	MIDIports::setup(); // sort out new MIDI ports
-	Sequencing::setup();
+	#endif
+	scrn::print("Intialising MIDI and sequencing...");
+	MIDIhandlers::begin();
+	MIDIports::begin(); // sort out new MIDI ports
+	Sequencing::begin();
 	
-	interface::modeSelect::setup();
-	Serial.println("Intialising screen...");
-	scrn::setup();
+	interface::modeSelect::begin();
+	#ifdef USESERIAL
 	Serial.println("Intialising LEDs...");
-	LEDfeedback::setup();
-	Serial.println("Intialising Rotary Encoders...");
-	encoders::setup(modes::encoderAllocator);
+	#endif
+	scrn::print("Intialising LEDs...");
+	LEDfeedback::begin();
+	//Serial.println("Intialising Rotary Encoders...");
+	//encoders::setup(modes::encoderAllocator);
 	
 //Add a load of test notes:
 //This should load from an SD card
-Sequencing::trackArray[0].addOrUpdateNote({36, 100, {0,0,12}}, {0, 0}, false);
-Sequencing::trackArray[0].addOrUpdateNote({38, 100, {0,0,12}}, {0, 1}, false);
-Sequencing::trackArray[0].addOrUpdateNote({41, 100, {0,0,12}}, {0, 2}, false);
-Sequencing::trackArray[0].addOrUpdateNote({45, 100, {0,0,12}}, {0, 3}, false);
-Sequencing::trackArray[0].addOrUpdateNote({33, 100, {0,0,12}}, {0, 4}, false);
-Sequencing::trackArray[0].addOrUpdateNote({38, 100, {0,0,12}}, {0, 5}, false);
-Sequencing::trackArray[0].addOrUpdateNote({41, 100, {0,0,12}}, {0, 6}, false);
-Sequencing::trackArray[0].addOrUpdateNote({45, 100, {0,0,12}}, {0, 7}, false);
-Sequencing::trackArray[0].addOrUpdateNote({36, 100, {0,0,12}}, {0, 8}, false);
-Sequencing::trackArray[0].addOrUpdateNote({38, 100, {0,0,12}}, {0, 9}, false);
-Sequencing::trackArray[0].addOrUpdateNote({41, 100, {0,0,12}}, {0, 10}, false);
-Sequencing::trackArray[0].addOrUpdateNote({50, 100, {0,0,12}}, {0, 11}, false);
-Sequencing::trackArray[0].addOrUpdateNote({36, 100, {0,0,12}}, {0, 12}, false);
-Sequencing::trackArray[0].addOrUpdateNote({38, 100, {0,0,12}}, {0, 13}, false);
-Sequencing::trackArray[0].addOrUpdateNote({41, 100, {0,0,12}}, {0, 14}, false);
-Sequencing::trackArray[0].addOrUpdateNote({57, 100, {0,0,12}}, {0, 15}, false);
+Sequencing::getTrack(0).addOrUpdateNote({36, 100, {0,0,12}}, {0, 0}, false);
+Sequencing::getTrack(0).addOrUpdateNote({38, 100, {0,0,12}}, {0, 1}, false);
+Sequencing::getTrack(0).addOrUpdateNote({41, 100, {0,0,12}}, {0, 2}, false);
+Sequencing::getTrack(0).addOrUpdateNote({45, 100, {0,0,12}}, {0, 3}, false);
+Sequencing::getTrack(0).addOrUpdateNote({33, 100, {0,0,12}}, {0, 4}, false);
+Sequencing::getTrack(0).addOrUpdateNote({38, 100, {0,0,12}}, {0, 5}, false);
+Sequencing::getTrack(0).addOrUpdateNote({41, 100, {0,0,12}}, {0, 6}, false);
+Sequencing::getTrack(0).addOrUpdateNote({45, 100, {0,0,12}}, {0, 7}, false);
+Sequencing::getTrack(0).addOrUpdateNote({36, 100, {0,0,12}}, {0, 8}, false);
+Sequencing::getTrack(0).addOrUpdateNote({38, 100, {0,0,12}}, {0, 9}, false);
+Sequencing::getTrack(0).addOrUpdateNote({41, 100, {0,0,12}}, {0, 10}, false);
+Sequencing::getTrack(0).addOrUpdateNote({50, 100, {0,0,12}}, {0, 11}, false);
+Sequencing::getTrack(0).addOrUpdateNote({36, 100, {0,0,12}}, {0, 12}, false);
+Sequencing::getTrack(0).addOrUpdateNote({38, 100, {0,0,12}}, {0, 13}, false);
+Sequencing::getTrack(0).addOrUpdateNote({41, 100, {0,0,12}}, {0, 14}, false);
+Sequencing::getTrack(0).addOrUpdateNote({57, 100, {0,0,12}}, {0, 15}, false);
 
-Sequencing::trackArray[9].addOrUpdateNote({36, 100, {0,0,12}}, {0, 0}, false);
-Sequencing::trackArray[9].addOrUpdateNote({36, 100, {0,0,12}}, {0, 4}, false);
-Sequencing::trackArray[9].addOrUpdateNote({36, 100, {0,0,12}}, {0, 8}, false);
-Sequencing::trackArray[9].addOrUpdateNote({36, 100, {0,0,12}}, {0, 12}, false);
-Sequencing::trackArray[9].addOrUpdateNote({36, 100, {0,0,12}}, {0, 13}, false);
-Sequencing::trackArray[9].addOrUpdateNote({36, 100, {0,0,12}}, {0, 14}, false);
-Sequencing::trackArray[9].addOrUpdateNote({36, 100, {0,0,12}}, {0, 15}, false);
+Sequencing::getTrack(9).addOrUpdateNote({36, 100, {0,0,12}}, {0, 0}, false);
+Sequencing::getTrack(9).addOrUpdateNote({36, 100, {0,0,12}}, {0, 4}, false);
+Sequencing::getTrack(9).addOrUpdateNote({36, 100, {0,0,12}}, {0, 8}, false);
+Sequencing::getTrack(9).addOrUpdateNote({36, 100, {0,0,12}}, {0, 12}, false);
+Sequencing::getTrack(9).addOrUpdateNote({36, 100, {0,0,12}}, {0, 13}, false);
+Sequencing::getTrack(9).addOrUpdateNote({36, 100, {0,0,12}}, {0, 14}, false);
+Sequencing::getTrack(9).addOrUpdateNote({36, 100, {0,0,12}}, {0, 15}, false);
 
-Sequencing::trackArray[1].addOrUpdateNote({36, 100, {0,0,12}}, {0, 0}, false);
-Sequencing::trackArray[1].addOrUpdateNote({45, 100, {0,0,12}}, {0, 1}, false);
-Sequencing::trackArray[1].addOrUpdateNote({48, 100, {0,0,12}}, {0, 2}, false);
-Sequencing::trackArray[1].addOrUpdateNote({50, 100, {0,0,12}}, {0, 3}, false);
-Sequencing::trackArray[1].addOrUpdateNote({55, 100, {0,0,12}}, {0, 4}, false);
-Sequencing::trackArray[1].addOrUpdateNote({60, 100, {0,0,12}}, {0, 5}, false);
+Sequencing::getTrack(1).addOrUpdateNote({36, 100, {0,0,12}}, {0, 0}, false);
+Sequencing::getTrack(1).addOrUpdateNote({45, 100, {0,0,12}}, {0, 1}, false);
+Sequencing::getTrack(1).addOrUpdateNote({48, 100, {0,0,12}}, {0, 2}, false);
+Sequencing::getTrack(1).addOrUpdateNote({50, 100, {0,0,12}}, {0, 3}, false);
+Sequencing::getTrack(1).addOrUpdateNote({55, 100, {0,0,12}}, {0, 4}, false);
+Sequencing::getTrack(1).addOrUpdateNote({60, 100, {0,0,12}}, {0, 5}, false);
 
 //Assign 
-Sequencing::trackArray[9].setSoundEngine(1);
-Sequencing::trackArray[0].setSoundEngine(2);
+Sequencing::getTrack(9).setSoundEngine(1);
+Sequencing::getTrack(0).setSoundEngine(2);
 
-Sequencing::trackArray[0].setMIDIPort(1);
+Sequencing::getTrack(0).setMIDIPort(1);
 
-MIDIports::inputs[3].toggleReceiveClock();
-MIDIports::inputs[3].toggleReceiveStartStop();
+MIDIports::getMIDIInputSettings(3).toggleReceiveClock();
+MIDIports::getMIDIInputSettings(3).toggleReceiveStartStop();
 
 setSequencePriority();
-
+#ifdef USESERIAL
 Serial.println("Initialising Sound Functions...");
+#endif
+scrn::print("Initialising Sound Functions...");
 
-audio::setup();
-monoSynth::setup();
-drumSampler::setup();
+audio::begin();
+monoSynth::begin();
+drumSampler::begin();
 
+
+#ifdef USESERIAL
 Serial.println("Ready");
-draw::startup();//draw cool graphics
+#endif
+scrn::print("Ready");
 
-//scheduled::newEvent(scheduled::lOE::listOfEvents::misc, []{modes::switchToMode(modes::settings, true);}, 1000);
+draw::startup();//draw cool graphics
 
 }//End setup
 
-
 void loop(){
-	debug::addLoopTimeToAverage();
-	audio::sgtl5000_1.volume(audio::usb2.volume() * interface::volume);
+	//audio::sgtl5000_1.volume(audio::usb2.volume() * interface::volume);
 	buttons::loop(); // Get the data from the buttons
-	encoders::check();
+	//encoders::check();
 	scheduled::checkFinishedEvents();
 	MIDIports::readMIDI();
-	if(Sequencing::slowFunc){
-		Sequencing::slowFunc = false;
+	LEDfeedback::sendLEDs();
+	if(Sequencing::isSequencerSlow()){
+		lg("slowFunc");
 	}
 	scrn::update();
+	if(hasPrinted){//DRaw a blank line after the end of each loop to make things more clear.
+		hasPrinted = false;
+		Serial.println();
+	}
 }//end loop

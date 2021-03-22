@@ -22,6 +22,20 @@ namespace draw{
 		scrn::write(390 , 160, "E"); delay(50);
 		scrn::write(445 , 160, "R"); delay(50);
 	}
+	void buttseqsos(){
+		scrn::fillScreen(scrn::getThemeColour(scrn::td::bg));
+		scrn::setTextColor(scrn::getThemeColour(scrn::td::text));
+		scrn::write(5   , 160, "B"); delay(50);
+		scrn::write(60  , 160, "U"); delay(50);
+		scrn::write(115 , 160, "T"); delay(50);
+		scrn::write(170 , 160, "T"); delay(50);
+		scrn::write(225 , 160, "S"); delay(50);
+		scrn::write(280 , 160, "E"); delay(50);
+		scrn::write(335 , 160, "Q"); delay(50);
+		scrn::write(390 , 160, "S"); delay(50);
+		scrn::write(410 , 160, "o"); delay(50);
+		scrn::write(430 , 160, "s"); delay(50);
+	}
 
 	void tempo(){
 		char tempoString[8] = {0};
@@ -77,7 +91,7 @@ namespace draw{
 		static const uint16_t editStepsHeight = 5;
 		static const uint16_t pianoRollXOffset = sideOffset + keyThickness + miniGap;
 		static const uint8_t legatoSize = 2;
-		static const uint8_t legatoOffset = 1;
+		//static const uint8_t legatoOffset = 1;
 	};
 
 	void drawPianoRollChaser(){
@@ -100,7 +114,7 @@ namespace draw{
 				);
 
 			if(Sequencing::isSeqPlaying()){
-				int currentBar = Sequencing::trackArray[interface::editTrack].getCurrentBar();
+				int currentBar = Sequencing::getTrack(interface::editTrack).getCurrentBar();
 				scrn::writeFillRect(//bar Chaser
 					pianoRollXOffset + currentBar * stepWidth + offset,
 					editStepsOffset + editStepsHeight + miniGap*2 + editStepsHeight,
@@ -109,7 +123,7 @@ namespace draw{
 					scrn::getThemeColour(scrn::td::fg)
 					);
 
-				int currentStep = Sequencing::trackArray[interface::editTrack].getCurrentStep();
+				int currentStep = Sequencing::getTrack(interface::editTrack).getCurrentStep();
 				// lg(currentStep);
 				scrn::writeFillRect(//step Chaser
 					pianoRollXOffset + currentStep * stepWidth + offset,
@@ -186,7 +200,7 @@ namespace draw{
 			//Add notes to piano roll:
 			for (int i = 0; i < numberOfSubsteps; i++){
 			// for (int i = 0; i < numberOfBeats; i++){
-				int bar = interface::settings::pianoRollFollowPlay ?  Sequencing::trackArray[interface::editTrack].getCurrentBar() : interface::viewBar;
+				int bar = interface::settings::pianoRollFollowPlay ?  Sequencing::getTrack(interface::editTrack).getCurrentBar() : interface::viewBar;
 				uint8_t actualBar = (bar + (i >= (numberOfSubsteps/2))) % 16;
 				uint8_t actualStep = (i / 16) % 16;
 				uint8_t actualSubstep = i % 16;
@@ -203,7 +217,7 @@ namespace draw{
 						bool isLegato = n.getLegato();
 						int thisNoteWidth = !isLegato ? min((stepWidth * n.getLengthInSubsteps())/16, widthForPianoRoll - xPos + pianoRollXOffset) : legatoSize;
 						int thisNoteY = bottom - relPitch*noteChannelWidth - noteChannelWidth + 1;
-						scrn::td::themeDescriptor descriptor = Sequencing::trackArray[interface::editTrack].isNoteMuted(n.getPitch()) ? scrn::td::bg : scrn::td::highlight;
+						scrn::td::themeDescriptor descriptor = Sequencing::getTrack(interface::editTrack).isNoteMuted(n.getPitch()) ? scrn::td::bg : scrn::td::highlight;
 						scrn::colour noteColour = scrn::getThemeColour(descriptor);
 						if(!isLegato){
 							scrn::writeFillRect(
@@ -335,7 +349,7 @@ namespace draw{
 		const int numberOfSteps = Sequencing::getActiveTrack().getStepsPerBar();
 
 		scrn::writeFillRect(0, scrn::topOffset, scrn::width, stepHeight, scrn::getThemeColour(scrn::td::bg));
-		scrn::write(0, scrn::topOffset + 2, Sequencing::trackArray[interface::editTrack].getCurrentBar());
+		scrn::write(0, scrn::topOffset + 2, Sequencing::getTrack(interface::editTrack).getCurrentBar());
 
 		for(int i = 0; i< numberOfSteps; i++){
 			scrn::writeFillRect(
@@ -347,7 +361,7 @@ namespace draw{
 			);
 		}
 
-		const int currrentStep = Sequencing::trackArray[interface::editTrack].getCurrentStep();
+		const int currrentStep = Sequencing::getTrack(interface::editTrack).getCurrentStep();
 		scrn::writeFillRect(
 			sideOffset + currrentStep*(stepWidth+gap) + offset,
 			scrn::topOffset + 2  + offset,
@@ -403,8 +417,8 @@ namespace draw{
 		const int keyboardKeys = gc::keyNum::notes;
 		const int remainingDataKeys = gc::numberOfCharacters - stepKeys - keyboardKeys;
 
-		int offsetX = 5;
-		int offsetY = scrn::height - buttonSize - 5;
+		int offsetX = 20;
+		int offsetY = 180;
 		//Step keys
 		for(int i=0; i<stepKeys; i++){
 			drawSquareWithChar(offsetX + 20 * i, offsetY, buttonSize, gc::chars[inc], scrn::getThemeColour(scrn::td::fg), scrn::getThemeColour(scrn::td::bg));
@@ -425,7 +439,7 @@ namespace draw{
 			inc++;
 			}
 		scrn::setTextColor(scrn::getThemeColour(scrn::td::text));
-	}
+		}
 
 	void editColours(){
 		const int margin = 17;
@@ -489,7 +503,7 @@ namespace draw{
 						utl::getNoteFromNoteNumber(noteName, pitch);
 						scrn::write(xPos, yPos + noteWidth, noteName);
 					}
-					if(Sequencing::trackArray[interface::editTrack].isNoteMuted(pitch)){
+					if(Sequencing::getTrack(interface::editTrack).isNoteMuted(pitch)){
 						scrn::writeFillRect(xPos + innerIndicatorMargin, yPos + innerIndicatorMargin, innerNoteSize, innerNoteSize , scrn::getThemeColour(scrn::td::bg));
 					}
 				}
@@ -510,7 +524,7 @@ namespace draw{
 					scrn::writeFillRect(outerMargin + margin, tracksY + trackWidth + margin*2, scrn::width - (outerMargin + margin)*2, trackWidth/2 , scrn::getThemeColour(scrn::td::bg));
 					scrn::writeFillRect(xPos, tracksY + trackWidth + margin*2, trackWidth, trackWidth/2 , scrn::getThemeColour(scrn::td::highlight));
 				}
-				if(Sequencing::trackArray[i].getMuted()){
+				if(Sequencing::getTrack(i).getMuted()){
 					scrn::writeFillRect(xPos + innerIndicatorMargin, tracksY + innerIndicatorMargin, innerTrackSize, innerTrackSize , scrn::getThemeColour(scrn::td::bg));
 				}
 			}
@@ -597,9 +611,9 @@ namespace draw{
 
 	void patternName(patMem::pattern_t patt){//Show the current pattern name
 		if(patt.isValid()){
-			char name[9] = {0};
-			patt.getName(name);
-			scrn::pattName.update(name);
+			// char name[9] = {0};
+			// patt.getName(name);
+			scrn::pattName.update(patt.getName());
 		} else {
 			scrn::pattName.update("<nopatt>");
 		}
@@ -672,7 +686,7 @@ namespace draw{
 			for(int j = 0; j< numberOfBars; j++){
 				drawBox = false;
 				//int x = sideMargin + j*barWidth;
-				patMem::pattern_t thisPatt = arrangement::arrangeChannels[interface::arrange::activeArrangement][i].getCurrentPattern(interface::arrange::firstTimelinePosition + j);
+				patMem::pattern_t thisPatt = arrangement::getArrangeChannel(interface::arrange::activeArrangement, i).getCurrentPattern(interface::arrange::firstTimelinePosition + j);
 				//When it finds a new pattern, draw the last pattern
 				if(lastPatt != thisPatt){
 					drawBox = true;
@@ -699,7 +713,7 @@ namespace draw{
 		//Draw selected box:
 		if(interface::arrange::editTimelinePosition < interface::arrange::firstTimelinePosition + numberOfBars && interface::arrange::editTimelinePosition >= interface::arrange::firstTimelinePosition){
 			int selectedPos = interface::arrange::editTimelinePosition - interface::arrange::firstTimelinePosition;
-			scrn::writeDrawRect(
+			scrn::writeEdgeRect(
 				sideMargin + selectedPos*barWidth,
 				scrn::topOffset + topMargin + interface::editTrack * trackHeight,
 				barWidth * 1,
@@ -709,8 +723,11 @@ namespace draw{
 		}
 		
 		//Draw loop points:
-		int startPos	= constrain(Sequencing::loopStart - interface::arrange::firstTimelinePosition	, 0, numberOfBars);
-		int endPos	= constrain(Sequencing::loopEnd - interface::arrange::firstTimelinePosition	, 0, numberOfBars);
+		const int startOffset = Sequencing::getLoopStart() - interface::arrange::firstTimelinePosition;
+		const int endOffset = Sequencing::getLoopEnd() - interface::arrange::firstTimelinePosition;
+		
+		const int startPos	= constrain(startOffset	, 0, numberOfBars);
+		const int endPos	= constrain(endOffset	, 0, numberOfBars);
 		
 		//Blank:
 		scrn::writeFillRect(
@@ -740,7 +757,7 @@ namespace draw{
 		if(!modes::checkActive(modes::arrange)){return;}
 		using namespace arrangeConstants;
 		//Blankers:
-		double position =	Sequencing::playingBar + Sequencing::lengthThroughBar;
+		double position =	Sequencing::getPlayingBar() + Sequencing::getLengthThroughBar();
 		position = position - interface::arrange::firstTimelinePosition;
 		int positionInGrid = 0;
 		if(position >= 0 && position < numberOfBars){
@@ -819,7 +836,7 @@ namespace draw{
 		scrn::write(sideMargin, getRow(9), "Preview");
 		//Loop:
 		for(int i = 0; i <gc::numberOfMIDIIns; i++){
-			MIDIports::midiInput& m = MIDIports::inputs[i];
+			MIDIports::midiInputSettings& m = MIDIports::getMIDIInputSettings(i);
 			int column = sideMargin + firstColumn + i * inColumnWidth;
 			scrn::write(column, getRow(1), m.name);
 			//Input election indicator:
@@ -827,7 +844,7 @@ namespace draw{
 				scrn::writeFillRect(column, getRow(1)+underlineOffset, inColumnWidth - underlineEndGap, 3, scrn::getThemeColour(scrn::td::highlight));
 			}
 			//Rows:
-			scrn::write(column, getRow(2), m.receiveClock	?	"rcv" : "-" );
+			scrn::write(column, getRow(2), m.receiveClock	? "rcv" : "-" );
 			scrn::write(column, getRow(3), m.receiveStartStop	? "rcv" : "-" );
 			scrn::write(column, getRow(4), m.receiveSeqControl	? "rcv" : "-" );
 			scrn::write(column, getRow(5), m.receiveSSP	? "rcv" : "-" );
@@ -838,7 +855,7 @@ namespace draw{
 					scrn::write(column, getRow(routDestRow),	m.getRoutingDestination());
 					break;
 				case MIDIports::routingType::port:
-					scrn::write(column, getRow(routDestRow),	MIDIports::getOutputName(m.getRoutingDestination()));
+					scrn::write(column, getRow(routDestRow),	MIDIports::getPortName(m.getRoutingDestination()));
 					break;
 				default:
 					scrn::write(column, getRow(routDestRow),	"-");
@@ -861,14 +878,14 @@ namespace draw{
 		scrn::write(sideMargin, getRow(15), "SSP");
 		//For loop:
 		for(int i = 0; i <gc::numberOfMIDIOuts; i++){
-			MIDIports::midiOutput& m = MIDIports::outputs[i];
+			MIDIports::midiOutputSettings& m = MIDIports::getMIDIOutputSettings(i);
 			int column = sideMargin + firstColumn + i * outColumnWidth;
 			scrn::write(column, getRow(11), m.name);
 			if(interface::MIDIPortScreen::selectedOutputs.test(i) && !interface::MIDIPortScreen::isInputSelected){
 				scrn::writeFillRect(column, getRow(11)+underlineOffset, outColumnWidth - underlineEndGap, 3, scrn::getThemeColour(scrn::td::highlight));
 			}
 
-			scrn::write(column, getRow(12),	m.sendClock	?	"snd" : "-" );
+			scrn::write(column, getRow(12),	m.sendClock	? "snd" : "-" );
 			scrn::write(column, getRow(13),	m.sendStartStop	? "snd" : "-" );
 			scrn::write(column, getRow(14),	m.sendSeqControl	? "snd" : "-" );
 			scrn::write(column, getRow(15),	m.sendSSP	? "snd" : "-" );
@@ -959,7 +976,7 @@ namespace draw{
 				){
 					int xSelectedPos = (selected%zoomedBlockWidth) * squareSize;
 					int ySelectedPos = (selected/zoomedBlockWidth) * squareSize;
-					scrn::writeDrawRect(xMargin + xSelectedPos-1, yMargin + ySelectedPos-1, squareSize+2, squareSize+2, scrn::getThemeColour(scrn::td::highlight));
+					scrn::writeEdgeRect(xMargin + xSelectedPos-1, yMargin + ySelectedPos-1, squareSize+2, squareSize+2, scrn::getThemeColour(scrn::td::highlight));
 				}
 				
 			}
@@ -972,7 +989,7 @@ namespace draw{
 				//Selected position:
 				int xSelectedPos = selected%zoomedBlockWidth;
 				int ySelectedPos = selected/zoomedBlockWidth;
-				scrn::writeDrawRect(xMargin + xSelectedPos-1, yMargin + ySelectedPos-1, 3, 3, scrn::getThemeColour(scrn::td::highlight));
+				scrn::writeEdgeRect(xMargin + xSelectedPos-1, yMargin + ySelectedPos-1, 3, 3, scrn::getThemeColour(scrn::td::highlight));
 			}
 		}
 	}
@@ -1016,19 +1033,19 @@ namespace draw{
 		lg(step);
 		
 		//Clear Last:
-		scrn::writeDrawRect(xMargin-1, lastbarYPos-1, wholeWidth+2, stepSize+2, scrn::getThemeColour(scrn::td::bg));
+		scrn::writeEdgeRect(xMargin-1, lastbarYPos-1, wholeWidth+2, stepSize+2, scrn::getThemeColour(scrn::td::bg));
 		if(lastStep >= 0){
 			lg(" drawLastStep");
 			std::array<int, 2> stepCoords = getStepCoords(lastBar*16 + lastStep);
-			scrn::writeDrawRect(stepCoords[0]-1, stepCoords[1]-1, stepSize+2, stepSize+2, scrn::getThemeColour(scrn::td::bg));
+			scrn::writeEdgeRect(stepCoords[0]-1, stepCoords[1]-1, stepSize+2, stepSize+2, scrn::getThemeColour(scrn::td::bg));
 		}
 		
 		//Draw new:
-		scrn::writeDrawRect(xMargin-1, barYPos-1, wholeWidth+2, stepSize+2, scrn::getThemeColour(scrn::td::highlight));
+		scrn::writeEdgeRect(xMargin-1, barYPos-1, wholeWidth+2, stepSize+2, scrn::getThemeColour(scrn::td::highlight));
 		if(step >= 0){
 			lg(" drawStep");
 			std::array<int, 2> stepCoords = getStepCoords(bar*16 + step);
-			scrn::writeDrawRect(stepCoords[0]-1, stepCoords[1]-1, stepSize+2, stepSize+2, scrn::getThemeColour(scrn::td::highlight));
+			scrn::writeEdgeRect(stepCoords[0]-1, stepCoords[1]-1, stepSize+2, stepSize+2, scrn::getThemeColour(scrn::td::highlight));
 		}
 		
 		lastBar = bar;
@@ -1103,7 +1120,7 @@ namespace draw{
 	
 	void process(){
 		using namespace processConstants;
-		volatile Sequencing::track& t = Sequencing::getActiveTrack();
+		Sequencing::track& t = Sequencing::getActiveTrack();
 		for(int i = 0; i<t.getNumProcesses(); i++){
 			const int type = t.getProcess(i).getProcessID();
 			scrn::write(10, i*lineHeight, process::processes[type].getName());
@@ -1130,6 +1147,29 @@ namespace draw{
 		}
 	}
 	
+	void modeGrid(const int xOffset, const int yOffset){
+		const int squareWidth = 100;
+		const int squareHeight = 20;
+		const int margin = 2;
+		for(int y = 0; y<4; y++){
+			for(int x = 0; x<4; x++){
+				const int xPos = xOffset + x * squareWidth + margin;
+				const int yPos = yOffset + y * squareHeight + margin;
+				scrn::writeFillRect(
+					xPos,
+					yPos,
+					squareWidth, 
+					squareHeight, 
+					scrn::getThemeColour(scrn::td::acc2)
+				);
+				const int butNum = x + y*4;
+				const char* name = modes::getModeFromButtons(butNum).getName();
+				scrn::write(xPos + 3, yPos + 3, name);
+				
+			}
+		}
+	}
+	
 	void buttons(const int x, const int y, const buttons::keySet::ks setToHighlight, const int scale){//Draw a digital representation of the buttons on the screen
 		using namespace scrn;
 		using namespace buttons;
@@ -1145,6 +1185,12 @@ namespace draw{
 		writeFillRect(x+7*scale	, y	,  4*scale	, 4*scale	,setToHighlight == keySet::data	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
 		writeFillRect(x+12*scale	, y	,  4*scale	, 4*scale	,setToHighlight == keySet::mode	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
 		writeFillRect(x+17*scale	, y	,  1*scale	, 4*scale	,setToHighlight == keySet::extra	? getThemeColour(td::highlight) : getThemeColour(td::acc1));
+	}
+	
+	void dataEventTimeLine(){
+		scrn::write(100, 100, "todo: this");
+		//Draw steps down left side
+		//For each step, have columns for each cc/bit of data
 	}
 
 	//void drawEdit

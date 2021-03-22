@@ -6,17 +6,11 @@
 #ifndef functionLists_h
 #define functionLists_h
 
-// #include "debug.h"
-
-// namespace debug{
-
-// extern int getAverageLoopTime();
-// }
 #include "list.h"
 
 namespace list{
 	
-typedef volatile bool* vbp;
+typedef bool* vbp;
 	
 std::vector<liElem*> settingsVec = 
 {
@@ -36,13 +30,17 @@ std::vector<liElem*> settingsVec =
 	new liElemF<sF<voidint>, gF<intvoid>>	("Screen Brightness"	, interface::settings::setScreenBrightness	, interface::settings::getScreenBrightness	, {0, 255}),
 	new liElemF<sF<voidvoid>, gF<>>	("Debug Menu"	, []{modes::switchToMode(modes::debug, true);}				),
 	new liElemF<sF<vbp>, gF<vbp>>	("Hold Shift Show Help"	, interface::settings::showHelp	, {"No"	, "Yes"	}	),
+	new liElemF<sF<voidint>, gF<charpvoid>>	("LED Hue"	, LEDfeedback::setActiveHue	, []()->const char* {return LEDfeedback::getActiveHue();}	 ), 
+	new liElemF<sF<vbp>, gF<vbp>>	("Silence Notes when recording"	, interface::settings::silenceNotesWhenRecording	, {"No"	, "Silence"	} ),
 };
 
 std::vector<liElem*> debugVec = 
 {
 	new liElemF<sF<voidvoid>, gF<>>	("Memory Inspect"	, []{modes::switchToMode(modes::memoryInspect, true);}	),
 	new liElemF<sF<voidvoid>, gF<>>	("All Notes Off"	, interface::all::sendAllNotesOff	),
-	new liElemF<sF<voidvoid>, gF<intvoid>>	("Average Sequencer Time"	, []{}	, debug::getAverageLoopTime),
+	new liElemF<sF<voidvoid>, gF<>>	("Clear Screen Lock"	, []{scrn::setScreenLock(false);}	),
+	new liElemF<sF<voidvoid>, gF<intvoid>>	("Average Sequencer Time"	, []{}	, buggerking::getAverageLoopTime),
+	new liElemF<sF<voidvoid>, gF<>>	("Trigger Error"	, []{notifications::successfulError.display();}	),
 };
 
 std::vector<liElem*> memoryVec = 
@@ -52,9 +50,9 @@ std::vector<liElem*> memoryVec =
 
 std::vector<liElem*> pattUtilVec = 
 {
-	new liElemF<sF<voidvoid>, gF<>>	("Rename Pattern"	, interface::pattUtils::enterRenameMode	),
-	new liElemF<sF<voidvoid>, gF<>>	("Save Pattern"	, []{interface::pattUtils::savePatternAsToCard();}	),
-	new liElemF<sF<voidvoid>, gF<>>	("View Patterns on card"	, []{modes::switchToMode(modes::cardView, true);}	),
+	new liElemF<sF<voidvoid>, gF<>>	("Rename Pattern"	, interface::pattUtils::renamePattern ),
+	new liElemF<sF<voidvoid>, gF<>>	("Save ..."	, interface::pattUtils::enterSaveMode ),
+	new liElemF<sF<voidvoid>, gF<>>	("Load ..."	, interface::pattUtils::enterLoadMode ),
 	new liElemF<sF<voidvoid>, gF<>>	("Connect to card"	, interface::pattUtils::connectToCard	),
 };
 
@@ -82,13 +80,13 @@ std::vector<liElem*> copyVec =
 
 std::vector<liElem*> quantiseVec = 
 {
-	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[0]	, []{interface::quantise::setQuantiseLevel(interface::quantise::quantiseLevels[0]);} ),
-	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[1]	, []{interface::quantise::setQuantiseLevel(interface::quantise::quantiseLevels[1]);} ),
-	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[2]	, []{interface::quantise::setQuantiseLevel(interface::quantise::quantiseLevels[2]);} ),
-	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[3]	, []{interface::quantise::setQuantiseLevel(interface::quantise::quantiseLevels[3]);} ),
-	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[4]	, []{interface::quantise::setQuantiseLevel(interface::quantise::quantiseLevels[4]);} ),
-	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[5]	, []{interface::quantise::setQuantiseLevel(interface::quantise::quantiseLevels[5]);} ),
-	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[6]	, []{interface::quantise::setQuantiseLevel(interface::quantise::quantiseLevels[6]);} ),
+	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[0]	, []{interface::quantise::applyQuantise(interface::quantise::quantiseLevels[0]);} ),
+	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[1]	, []{interface::quantise::applyQuantise(interface::quantise::quantiseLevels[1]);} ),
+	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[2]	, []{interface::quantise::applyQuantise(interface::quantise::quantiseLevels[2]);} ),
+	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[3]	, []{interface::quantise::applyQuantise(interface::quantise::quantiseLevels[3]);} ),
+	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[4]	, []{interface::quantise::applyQuantise(interface::quantise::quantiseLevels[4]);} ),
+	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[5]	, []{interface::quantise::applyQuantise(interface::quantise::quantiseLevels[5]);} ),
+	new liElemF<sF<voidvoid>, gF<>>	(interface::quantise::quantiseLevelStrings[6]	, []{interface::quantise::applyQuantise(interface::quantise::quantiseLevels[6]);} ),
 	
 	new liElemF<sF<vbp>, gF<vbp>>	("Wrap to pattern"	,	interface::quantise::wrapQuantise	, {"Do not wrap"	, "Wrap"	}	),
 	
@@ -102,11 +100,17 @@ std::vector<liElem*> performVec =
 
 std::vector<liElem*> cardViewVec = 
 {
-	new liElemF<sF<voidvoid>, gF<>>	("Load Pattern To Memory"	, []{interface::pattUtils::loadPatternToMemory();}	),
-	new liElemF<sF<voidvoid>, gF<>>	("Load Pattern To Track"	, interface::pattUtils::loadPatternToActiveTrack	),
-	new liElemF<sF<voidvoid>, gF<>>	("Load Pattern To Track Bank"	, interface::pattUtils::loadPatternFromCardToTrackBank	),
-	new liElemF<sF<voidvoid>, gF<>>	("Delete Pattern"	, interface::pattUtils::deletePatternFromCard	),
-	new liElemF<sF<voidvoid>, gF<>>	("Rename"	, interface::pattUtils::renamePatternOnCard	),
+	new liElemF<sF<voidvoid>, gF<>>	("../ Goto parent folder"	, interface::pattUtils::goToParentFolder	),
+	new liElemF<sF<voidvoid>, gF<>>	("Look inside"	, interface::pattUtils::lookInside	),
+	new liElemF<sF<voidvoid>, gF<>>	("New Folder"	, interface::pattUtils::newFolder	),
+	new liElemF<sF<voidvoid>, gF<>>	("Save all"	, interface::pattUtils::saveAll	),
+	new liElemF<sF<voidvoid>, gF<>>	("Load all from active"	, interface::pattUtils::loadAllFromActive	),
+	new liElemF<sF<voidvoid>, gF<>>	("Rename file"	, interface::pattUtils::renameActive	),
+	new liElemF<sF<voidvoid>, gF<>>	("Delete"	, interface::pattUtils::deleteActive	),
+	new liElemF<sF<voidvoid>, gF<>>	("Copy"	, interface::pattUtils::copy	),
+	new liElemF<sF<voidvoid>, gF<>>	("Cut"	, interface::pattUtils::cut	),
+	new liElemF<sF<voidvoid>, gF<>>	("Paste"	, interface::pattUtils::paste	),
+	new liElemF<sF<vbp>, gF<vbp>>	("Save / Load"	, interface::settings::isInSaveMode	, {"Load"	, "Save"	}	),
 };
 
 std::vector<liElem*> pattSwitVec = 
@@ -144,19 +148,20 @@ std::vector<liElem*> editStepsVec =
 
 std::vector<liElem*> editPattVec = 
 {
+	new liElemF<sF<voidint>, gF<intvoid>>	("Pattern Length"	, interface::editPatt::setStepLength	, []()->int	{return Sequencing::getActivePattern().getLength().getLength();}	 , {1, 256}),
 	new liElemF<sF<voidint>, gF<intvoid>>	("Steps per bar"	, interface::editPatt::setStepsPerBar	, []()->int	{return Sequencing::getActivePattern().getStepsPerBar();}	 ),
-	new liElemF<sF<voidint>, gF<intvoid>>	("Pattern Length"	, interface::editPatt::setStepLength	, []()->int	{return Sequencing::getActivePattern().getLengthInSteps();}	 , {0, 256}),
-	new liElemF<sF<voidint>, gF<intvoid>>	("Pattern Length (Bars)"	, interface::editPatt::setStepLengthInBars	, []()->int	{return Sequencing::getActivePattern().getLengthInSteps();}	 , {0, 16}),
+	new liElemF<sF<voidint>, gF<intvoid>>	("Number of Bars"	, interface::editPatt::setNumberOfBars	, []()->int	{return Sequencing::getActivePattern().getNumberOfBars();}	 ),
 	new liElemF<sF<voidint>, gF<intvoid>>	("Velocity offset"	, interface::editPatt::setVelocity	, []()->int	{return Sequencing::getActivePattern().getVelocity();}	 , {-127, 127}),
 	new liElemF<sF<voidint>, gF<intvoid>>	("Accent offset"	, interface::editPatt::setAccentVelocity	, []()->int	{return Sequencing::getActivePattern().getAccentVelocity();}	 , {-127, 127}),
 	new liElemF<sF<voidint>, gF<intvoid>>	("Transpose"	, interface::transpose::goToTransposeMode	, []()->int	{return Sequencing::getActivePattern().getTranspose();}	 ),
 	new liElemF<sF<voidint>, gF<intvoid>>	("Shuffle"	, interface::editPatt::setShuffle	, []()->int	{return Sequencing::getActivePattern().getShuffle();}	 ),
 	new liElemF<sF<voidvoid>, gF<charpvoid>>	("Stretch to bar"	, interface::editPatt::toggleFillToBar	, []()->const char*	{return interface::editPatt::getFillToBar();}	 ),
 	new liElemF<sF<voidvoid>, gF<>>	("Track Settings:"	, [/*just to break up the menu*/]{}	),
-	new liElemF<sF<voidint>, gF<charpvoid>>	("Track Mode"	, interface::editPatt::setTrackMode	, []()->const char*	{return Sequencing::trackArray[interface::editTrack].getTrackModeString();}	 ),
-	new liElemF<sF<voidint>, gF<intvoid>>	("Track MIDI channel"	, interface::editPatt::setTrackChannel	, []()->int	{return Sequencing::trackArray[interface::editTrack].getMIDIchannel();}	 ),
-	new liElemF<sF<voidint>, gF<charpvoid>>	("Track MIDI port"	, interface::editPatt::setTrackPort	, []()->const char*	{return Sequencing::trackArray[interface::editTrack].getMIDIportForUser();}	 ),
-	new liElemF<sF<voidint>, gF<charpvoid>>	("Sound Engine"	, interface::editPatt::setSoundEngine	, []()->const char*	{return Sequencing::trackArray[interface::editTrack].getSoundEngineName();}	 ),
+	new liElemF<sF<voidvoid>, gF<charpvoid>>	("Track Name"	, interface::pattUtils::renameTrack	, []()->const char*	{return Sequencing::getActiveTrack().getName();}	 ),
+	new liElemF<sF<voidint>, gF<charpvoid>>	("Track Mode"	, interface::editPatt::setTrackMode	, []()->const char*	{return Sequencing::getActiveTrack().getTrackModeString();}	 ),
+	new liElemF<sF<voidint>, gF<intvoid>>	("Track MIDI channel"	, interface::editPatt::setTrackChannel	, []()->int	{return Sequencing::getActiveTrack().getMIDIchannel();}	 ),
+	new liElemF<sF<voidint>, gF<charpvoid>>	("Track MIDI port"	, interface::editPatt::setTrackPort	, []()->const char*	{return Sequencing::getActiveTrack().getMIDIportForUser();}	 ),
+	new liElemF<sF<voidint>, gF<charpvoid>>	("Sound Engine"	, interface::editPatt::setSoundEngine	, []()->const char*	{return Sequencing::getActiveTrack().getSoundEngineName();}	 ),
 };
 
 std::vector<liElem*> themeEditVec = 
@@ -179,8 +184,8 @@ std::vector<liElem*> arrangeVec =
 	new liElemF<sF<voidint>, gF<intvoid>>	("Append patterns"	, interface::arrange::setAppendNewPatternsForBars	, []()->int	{return interface::arrange::getAppendNewPatternsForBars();}, {0, 64}	 ),
 	new liElemF<sF<voidint>, gF<charpvoid>>	("Cursor mode"	, interface::arrange::changeCursorPosition	, []()->const char*	{return interface::arrange::getCursorPositionString();}	 ),
 	new liElemF<sF<voidint>, gF<intvoid>>	("Jump To"	, interface::arrange::jumpTo	, []()->int	{return interface::arrange::getTimelinePosition();}, {0, 4095}	 ),
-	new liElemF<sF<voidvoid>, gF<intvoid>>	("Set loop start"	, interface::arrange::setLoopStart	, []()->int	{return Sequencing::loopStart;} ),
-	new liElemF<sF<voidvoid>, gF<intvoid>>	("Set loop end"	, interface::arrange::setLoopEnd	, []()->int	{return Sequencing::loopEnd;} ),
+	new liElemF<sF<voidvoid>, gF<intvoid>>	("Set loop start"	, interface::arrange::setLoopStart	, Sequencing::getLoopStart ),
+	new liElemF<sF<voidvoid>, gF<intvoid>>	("Set loop end"	, interface::arrange::setLoopEnd	, Sequencing::getLoopEnd ),
 	new liElemF<sF<vbp>, gF<vbp>>	("Use Arrange Mode"	, interface::arrange::useArrangeMode	, {"No"	, "Yes"	} ),
 };
 
@@ -222,14 +227,25 @@ std::vector<liElem*> processVec =
 	new liElemF<sF<voidint>, gF<>>	("Reorder Process"	, interface::process::reorderProcesses),
 };
 
+//This needs to be properly updated:
+std::vector<liElem*> dataEventVec = 
+{
+	new liElemF<sF<vbp>, gF<vbp>>	("Add event"	, interface::debug::zoomed	, {"Whole"	, "Page"	}, draw::updateScreen	),
+	new liElemF<sF<vbp>, gF<vbp>>	("Clear event"	, interface::debug::zoomed	, {"Whole"	, "Page"	}, draw::updateScreen	),
+	new liElemF<sF<vbp>, gF<vbp>>	("Edit Substeps"	, interface::settings::editSubstepsAlso	, {"Only steps"	, "Substeps"	}	),
+	new liElemF<sF<vbp>, gF<vbp>>	("Change Event Type"	, interface::settings::editSubstepsAlso	, {"Only steps"	, "Substeps"	}	),
+	new liElemF<sF<vbp>, gF<vbp>>	("Change Parameter"	, interface::settings::editSubstepsAlso	, {"Only steps"	, "Substeps"	}	),
+	new liElemF<sF<vbp>, gF<vbp>>	("Change Value"	, interface::settings::editSubstepsAlso	, {"Only steps"	, "Substeps"	}	),
+};
+
 //type	name	vector	type	, y	, x	, w	, scroll	, maxlines, 	, dataXoffset	, showActive
-listControllerFixed	settings	= {&settingsVec	, listType::keyboard	, 0	, 0	, 480	, true	, 16	, 240	, true};
+listControllerFixed	settings	= {&settingsVec	, listType::keyboard	, 0	, 0	, 480	, false	, 16	, 240	, true};
 listControllerFixed	debug	= {&debugVec	, listType::keyboard	, 0	, 0	, 480	, true	, 16	, 240	, true};
 listControllerFixed	memory	= {&memoryVec	, listType::keyboard	, 260	, 300	, 480	, false	, 16	, 100	, true};
 listControllerFixed	pattUtil	= {&pattUtilVec	, listType::keyboard	, 40	, 0	, 480	, false	, 8	, 240	, false};
 listControllerFixed	pattProc	= {&pattProcVec	, listType::keyboard	, 80	, 0	, 480	, false	, 8	, 240	, false};
 listControllerFixed	perform	= {&performVec	, listType::keyboard	, 0	, 0	, 480	, true	, 8	, 240	, true};
-listControllerFixed	cardView	= {&cardViewVec	, listType::keyboard	, 180	, 0	, 480	, true	, 8	, 240	, true};
+listControllerFixed	cardView	= {&cardViewVec	, listType::keyboard	, 20	, 280	, 480	, false	, 16	, 120	, false};
 listControllerFixed	pattSwit	= {&pattSwitVec	, listType::keyboard	, 30	, 180	, 300	, true	, 8	, 240	, false};
 listControllerFixed	editSteps	= {&editStepsVec	, listType::data	, 30	, 300	, 200	, false	, 16	, 100	, true};
 listControllerFixed	editPatt	= {&editPattVec	, listType::keyboard	, 30	, 0	, 480	, true	, 16	, 240	, true};
@@ -241,7 +257,8 @@ listControllerFixed	MIDIOutput	= {&MIDIOutputVec	, listType::keyboard	, 0	, 0	, 
 listControllerFixed	MIDIInput	= {&MIDIInputVec	, listType::keyboard	, 0	, 0	, 0	, false	, 0	, 160	, false};
 listControllerFixed	select	= {&selectVec	, listType::keyboard	, 0	, 300	, 180	, false	, 8	, 155	, false};
 listControllerFixed	process	= {&processVec	, listType::keyboard	, 30	, 240	, 100	, false	, 8	, 240	, false};
-listControllerCard	cardPatts	= {nullptr	, listType::normal	, 0	, 0	, 480	, true	, 8	, 240	, true};
+listControllerFixed	dataEvent	= {&dataEventVec	, listType::keyboard	, 30	, 240	, 100	, false	, 8	, 240	, false};
+listControllerCard	cardFiles	= {nullptr	, listType::normal	, 0	, 0	, 280	, true	, 8	, 240	, true};
 listControllerPatMem	memPatts	= {nullptr	, listType::fullkeyed	, 30	, 0	, 180	, true	, 8	, 240	, true};
 		
 }//End list namespace

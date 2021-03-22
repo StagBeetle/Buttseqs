@@ -1,7 +1,23 @@
 #include "Arduino.h"
 #include "forwarddec.h"
+#include "buttons.h"
 
-namespace debug{//Debug message processing:
+void pause(){//Pause until Serial characters received then ignore them and keep going
+	// char c = '\0';
+	// Serial.print("waiting...");
+	// while(Serial.available() < 1){
+		// // Serial.println(Serial.available() );
+		// // delay(500);
+	// };
+	// while(Serial.available()){
+		// c = Serial.read();
+		// // delay(50);
+	// };
+	// Serial.println(c);
+	// Serial.print(" ...end");
+}
+
+namespace buggerking{//Debug message processing:
 	char parameter [128] = {0};
 	char value [128] = {0};
 	bool shouldSetValue = false;
@@ -19,7 +35,7 @@ namespace debug{//Debug message processing:
 		lg(valueRunningTotal);
 			
 		if(parameterRunningTotal >= 0 && parameterRunningTotal < 81){
-			//buttons::buttonsDEBUG[parameterRunningTotal] = valueRunningTotal;
+			buttons::setButton(parameterRunningTotal, valueRunningTotal);
 		}
 		
 		memset(parameter,0,sizeof(parameter));
@@ -27,6 +43,7 @@ namespace debug{//Debug message processing:
 	}
 
 	void serialButtonCheck(){
+		#ifdef USESERIAL
 		while(Serial.available()){
 			char c = Serial.read();
 			char miniBuffer [2] = {0};
@@ -53,13 +70,70 @@ namespace debug{//Debug message processing:
 					break;
 			}
 		}
-		
+		#endif
 		// int i = 0;
 		// for(auto b: buttons::buttonsOutput){
 			// if(b){lg(i);}
 			// i++;
 		// }
 	}
+	
+	enum class serialMessage{
+		buttonPress = 128,
+		buttonRelease = 129,
+		tempo = 130,
+		none = 255
+		};
+	 
+	
+	int tempoVal = 120;
+	int bytesReceived = 0;
+	void checkSerialFromPython(){
+		static uint16_t tempTempoVal;
+		static serialMessage serialMessageIn;
+		if(Serial.available()){
+			byte serialData = Serial.read();
+			if(serialData >= 128){
+				serialMessageIn = static_cast<serialMessage>(serialData);
+				bytesReceived = 0;
+				}
+			else{
+				bytesReceived ++;
+				switch (serialMessageIn){
+					case serialMessage::buttonPress:
+						buttons::setButton(serialData, false);
+						break;
+					case serialMessage::buttonRelease:
+						buttons::setButton(serialData, true);
+						break;
+					case serialMessage::tempo:
+						if (bytesReceived == 1){
+							tempTempoVal = serialData << 7;
+							//lg(1);
+							//lg(tempTempoVal);
+						}
+						else if(bytesReceived == 2){
+							tempTempoVal = tempTempoVal + serialData;
+							//lg(2);
+							//lg(tempTempoVal);
+						}
+						else {
+							//lg(3);
+							double tempo = tempTempoVal + (double)serialData/100.0;
+							Sequencing::setTempo(tempo);
+							//lg(tempTempoVal);
+							//lg(serialData);
+							draw::tempo();
+							//lg("\n");
+						}
+						break;
+					default:
+						break;
+					}
+				}
+			}
+		}
+	
 	const int numberOfLoopAverages = 16;
 	int loopAverages[numberOfLoopAverages] = {0};
 	int averagePosition = 0;

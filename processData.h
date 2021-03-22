@@ -7,7 +7,7 @@ namespace process{
 namespace f{
 
 //Functions:
-patMem::noteList none(volatile processStack* stack, patMem::position pos, dataArray data){
+patMem::noteList none( processStack* stack, patMem::position pos, dataArray data){
 	patMem::noteList notes = stack->getTrack().getActivePattern().getNotesOnStep(pos);//Get the notes straight from the pattern
 	return notes;
 }
@@ -15,7 +15,7 @@ patMem::noteList none(volatile processStack* stack, patMem::position pos, dataAr
 //Call getLastStage which will decrement the stack counter and give us the stage
 //You must call getNotesOnStep
 //The data array will be written 
-patMem::noteList transpose(volatile processStack* stack, patMem::position pos, dataArray data){
+patMem::noteList transpose( processStack* stack, patMem::position pos, dataArray data){
 	process_t lastStage = stack->getLastStage();
 	patMem::noteList notes = lastStage.getNotesOnStep(stack, pos, lastStage.getParams());
 	for(patMem::note& n: notes){
@@ -34,7 +34,7 @@ patMem::noteList transpose(volatile processStack* stack, patMem::position pos, d
 	return notes;
 }
 
-patMem::noteList shift(volatile processStack* stack, patMem::position pos, dataArray data){
+patMem::noteList shift( processStack* stack, patMem::position pos, dataArray data){
 	process_t lastStage = stack->getLastStage();
 	patMem::noteList notes = lastStage.getNotesOnStep(
 		stack,
@@ -78,7 +78,7 @@ namespace arpData{ enum AD {
 		lastPlayedNote	= 34,	// Which note was played last
 	}; }
 	
-patMem::noteList arpeggiate(volatile processStack* stack, patMem::position pos, dataArray data){
+patMem::noteList arpeggiate( processStack* stack, patMem::position pos, dataArray data){
 	using namespace arpData;
 	constexpr int arpNotes = 8;
 	//Sequencing::track track =	stack->getTrack();

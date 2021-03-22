@@ -9,19 +9,19 @@
 #include "Utility.h"
 #include "list.h"
 
+
 namespace interface{
 	bool isShiftHeld = false;
-	byte keyboardOctave = 3;
+	uint8_t keyboardOctave = 3;
 	enum class editPriorityModes : uint8_t {noteFirst = 0, stepFirst = 1};
-	byte viewBar = 0;
-	byte editTrack = 0;
+	uint8_t viewBar = 0;
+	uint8_t editTrack = 0;
 
 	std::bitset<128> editPitches;
 
 	int8_t editStepForSubstep = -1;
 	
-	std::bitset<gc::numberOfSubsteps> stepSelection;
-	std::bitset<gc::numberOfSubsteps> lastStepSelection;
+	/*EXTMEM*/ std::bitset<gc::numberOfSubsteps> stepSelection;
 	
 	bool applyOnEntirePattern = false; //For process editing
 
@@ -49,11 +49,16 @@ namespace settings{
 	bool editSubstepsAlso = false; //Whether the normal editStep mode should edit every substep.
 	bool jumpToActivePattern = true; //Automatically go to the active pattern in the pattern menu
 	unsigned int recordPriorityCutoff = 1000; //Used but not well.
-	bool silenceNotesWhenRecording = true; //Should playing the keyboard silence the playing pattern
+	bool silenceNotesWhenRecording = false; //Should playing the keyboard silence the playing pattern
 	bool recordOnlyFromExternal = false;
 	uint8_t screenBrightness = 255;
 	bool showHelp = true;
 	bool displayProcessedPatternsInPianoRoll = true;
+	bool isInSaveMode = true; //False for load;
+	bool clearNameBufferOnEnter = true;
+	bool saveToLastLocation = true; //Else ask
+	bool overwriteExisting = false; //Else overwrite
+	bool clearNRPNafterEach = false;
 	}//End settings
 	
 	int8_t gPFK(const uint8_t key){//GetPitchFromKey //REturn -1 for error
@@ -158,11 +163,15 @@ namespace editNotes{
 		draw::viewBar();
 	}
 	
+	//If there are substeps to advance, we shift the step selection forward by however many. e.g. if the selection is as below, and advanceSTeps is set to 16
+	//B---B---B---B--- 
+	//-B---B---B---B--
+	//It wraps round at the end
 	void maybeAdvanceStep(){
 		if (settings::advanceSteps){
 			const int numberOfStepsToAdvance = settings::advanceSteps;
-			const int patternLength = Sequencing::getActivePattern().getLengthInSteps() * 16;
-			std::bitset<gc::numberOfSubsteps> overflow; //This allocates 512 bytes. Maybe risky?
+			const int patternLength = Sequencing::getActivePattern().getLength().getLength();
+			std::bitset<gc::numberOfSubsteps> overflow; //This allocates 512(4096/8) bytes. Maybe risky?
 			//From the last steps that fall within the pattern length, set the overflow to wrap round to the start
 			for(int i=0; i<numberOfStepsToAdvance; i++){
 				bool s = stepSelection.test(patternLength-1-i);
@@ -241,10 +250,10 @@ namespace editNotes{
 		// static long long timeAtLastPress = 0;
 		// static uint8_t lastStep = 16;
 		editNotes::setEditStep(button);
-		if(settings::editPriority == editPriorityModes::noteFirst){
+		if(settings::editPriority == editPriorityModes::noteFirst){ 
 			forEachPitch([s](uint8_t i){
 				patMem::position pos = inSubstep() ? patMem::position{viewBar, (uint8_t)editStepForSubstep, s} : patMem::position{viewBar, s};
-				bool isMono = Sequencing::trackArray[editTrack].getTrackMode() == Sequencing::trackType::mono;
+				bool isMono = Sequencing::getActiveTrack().getTrackMode() == Sequencing::trackType::mono;
 				Sequencing::getActiveTrack().addOrRemoveNote({i, editVelocity, editLength, editAccent, editLegato}, pos , isMono);
 				});
 			}
@@ -257,7 +266,7 @@ namespace editNotes{
 		//silenceNotesWhenRecording
 		if(settings::notePreview){
 			uint8_t previewPitch = gPFK(note);
-			Sequencing::trackArray[editTrack].playNoteOn({previewPitch, editVelocity, {false}});//Length does not matter
+			Sequencing::getActiveTrack().playNoteOn({previewPitch, editVelocity, {false}});//Length does not matter
 			if(settings::silenceNotesWhenRecording){
 				Sequencing::getActiveTrack().setTemporaryMute();
 			}
@@ -267,7 +276,7 @@ namespace editNotes{
 	void releaseNote(int note){
 		if(settings::notePreview){
 			uint8_t previewPitch = gPFK(note);
-			Sequencing::trackArray[editTrack].playNoteOff(previewPitch);
+			Sequencing::getActiveTrack().playNoteOff(previewPitch);
 			if(settings::silenceNotesWhenRecording){
 				Sequencing::getActiveTrack().setTemporaryMute();
 			}
@@ -280,7 +289,7 @@ namespace editNotes{
 			forEachStep([note](patMem::position pos){
 				uint8_t noteToAdd = gPFK(note);
 				if (noteToAdd <= 127){
-					bool isMono = Sequencing::trackArray[editTrack].getTrackMode() == Sequencing::trackType::mono;
+					bool isMono = Sequencing::getActiveTrack().getTrackMode() == Sequencing::trackType::mono;
 					Sequencing::getActiveTrack().addOrRemoveNote({noteToAdd, editVelocity, editLength, editAccent, editLegato}, pos, isMono);
 					// lg(i);
 				}
@@ -318,19 +327,24 @@ namespace editNotes{
 }// end editNotes namespace
 	
 namespace editPatt{
-	void setStepsPerBar(const int button){
-		Sequencing::getPattern(editTrack).setStepsPerBar(button+1);
-	}
-	
+	//This sets the pattern to be 1 - 256 steps long
 	void setStepLength(const int length){
-		const int actualLength = length == 256 ? 0 : length;
-		Sequencing::getPattern(editTrack).setLength(actualLength);
+		const int actualLength = (length == 256) ? 0 : length; //Use 0 steps to represent 256
+		Sequencing::getActivePattern().setLength(actualLength);
 		draw::updateScreen();
 	}
 	
-	void setStepLengthInBars(const int bars){
-		const int stepsPerBar = Sequencing::getPattern(editTrack).getStepsPerBar();
-		Sequencing::getPattern(editTrack).setLength(bars * stepsPerBar);
+	//This sets how many steps per bar, which is just for the display
+	void setStepsPerBar(const int button){
+		lg(button+1);
+		Sequencing::getActivePattern().setStepsPerBar(button+1);
+		draw::updateScreen();
+	}
+	
+	//This sets how many bars the pattern should be and sets the pattern length to stepsPerBar * number of BArs
+	void setNumberOfBars(const int bars){
+		lg(bars+1);
+		Sequencing::getActivePattern().setNumberOfBars(bars+1);
 		draw::updateScreen();
 	}
 	
@@ -357,7 +371,7 @@ namespace editPatt{
 	}
 
 	void setTrackMode(const int val){
-		Sequencing::trackArray[interface::editTrack].setTrackMode(val);
+		Sequencing::getActiveTrack().setTrackMode(val);
 	}
 
 	const char* getFillToBar(){
@@ -378,16 +392,16 @@ namespace editPatt{
 		// }
 	
 	void setTrackChannel(const int button){
-		Sequencing::trackArray[interface::editTrack].setMIDIChannel(button);
+		Sequencing::getActiveTrack().setMIDIChannel(button);
 	}
 	
 	void setTrackPort(const int button){
-		Sequencing::trackArray[interface::editTrack].setMIDIPort(button);
+		Sequencing::getActiveTrack().setMIDIPort(button);
 	}
 	
 	void setSoundEngine(const int button){
 		if(audio::isValidIndex(button)){
-			Sequencing::trackArray[interface::editTrack].setSoundEngine(button);
+			Sequencing::getActiveTrack().setSoundEngine(button);
 		}
 	}
 	
@@ -525,6 +539,8 @@ editStepMode activeEditStepMode;
 		"Legato"	,
 	};
 	
+	
+	//Set the parameters of selected notes
 	void editStepParameter(const int button){
 		uint8_t b = static_cast<uint8_t>(button);
 		switch (activeEditStepMode){
@@ -620,23 +636,23 @@ namespace mute{
 		if(interface::isShiftHeld){
 			for(int i=0; i<gc::numberOfTracks; i++){
 				if(i != button){
-					Sequencing::trackArray[i].toggleMute();
+					Sequencing::getTrack(i).toggleMute();
 				}
 			}
 		} else { //Shift not held:
-			Sequencing::trackArray[button].toggleMute();
+			Sequencing::getTrack(button).toggleMute();
 		}
 		draw::muteTracks();
 	}
 	
 	void muteTrack(int button){
-		Sequencing::trackArray[button].mute();
-		Sequencing::trackArray[button].endLegatoNote();
+		Sequencing::getTrack(button).mute();
+		Sequencing::getTrack(button).endLegatoNote();
 		draw::muteTracks();
 	}
 	
 	void unmuteTrack(int button){
-		Sequencing::trackArray[button].unmute();
+		Sequencing::getTrack(button).unmute();
 		draw::muteTracks();
 	}
 		 
@@ -647,11 +663,11 @@ namespace mute{
 			if(interface::isShiftHeld){
 				for(int i=0; i < 128; i++){
 					if(i != noteToMute){
-						Sequencing::trackArray[editTrack].toggleMutedNote(i);
+						Sequencing::getActiveTrack().toggleMutedNote(i);
 					}
 				}
 			} else { //Shift not held:
-				Sequencing::trackArray[editTrack].toggleMutedNote(noteToMute);
+				Sequencing::getActiveTrack().toggleMutedNote(noteToMute);
 			}
 			draw::muteNotes();
 		}
@@ -715,58 +731,126 @@ namespace performance{
 namespace pattUtils{
 	char currentLoadPatternName[card::maxDirectoryLength+1] = {0};
 	
-	void enterRenameMode(){
-		modes::switchToMode(modes::rename, true);
-		}
+	void renamePattern(){
+		std::function<void(const char*)> setter = [](const char* newName) {Sequencing::getActivePattern().setName(newName);};
+		all::setKeyboardContext(setter, []{return Sequencing::getActivePattern().getName();}, "Pattern name", 16);
+	}
 		
-	void addCharToPatternName(const char character){
-		Sequencing::getActivePattern().addCharToName(character);
-		}
+	void renameTrack(){
+		std::function<void(const char*)> setter = [](const char* newName) {Sequencing::getActiveTrack().setName(newName);};
+		all::setKeyboardContext(setter, []{return Sequencing::getActiveTrack().getName();}, "Track name", Sequencing::nameLength);
+	}
 		
-	void removeCharFromPatternName(){
-		Sequencing::getActivePattern().removeCharFromName();	
-		}
+	//Removed due to rewriting the on-screen keyboard 
+	// void addCharToPatternName(const char character){
+		// Sequencing::getActivePattern().addCharToName(character);
+		// }
 		
-	void savePatternAsToCard(bool checkFileExists){
-		char name[9];
-		Sequencing::getActivePattern().getName(name);
-		if(name[0] == 0){ //If string has no name
-			notifications::noFileName.display();
-			modes::switchToMode(modes::rename, true);
-			return;
+	// void removeCharFromPatternName(){
+		// Sequencing::getActivePattern().removeCharFromName();	
+		// }
+		
+	// void savePatternAsToCard(bool checkFileExists){
+		// char name[9];
+		// Sequencing::getActivePattern().getName(name);
+		// if(name[0] == 0){ //If string has no name
+			// notifications::noFileName.display();
+			// modes::switchToMode(modes::rename, true);
+			// return;
+			// }
+		// if(card::fileExists(name) && checkFileExists){
+			// modal::initiateModal(
+				// "Overwrite file?", 
+				// {
+					// {"No",  nullFunc},
+					// {"Yes", []{savePatternAsToCard(false);}}
+				// }
+			// );
+			// return; //Do not save if file exists
+		// }
+		// Sequencing::getActivePattern().saveToCard();
+	// }
+		
+	// void savePatternAsToCard(){
+		// savePatternAsToCard(true);
+	// }
+	
+	void enterSaveMode(){
+		settings::isInSaveMode = true;
+		modes::switchToMode(modes::cardView, true);
+	}
+	
+	void enterLoadMode(){
+		settings::isInSaveMode = false;
+		modes::switchToMode(modes::cardView, true);
+	}
+	
+	void goToParentFolder(){
+		card::goToParentFolder();
+		list::cardFiles.draw();
+	}
+	
+	void lookInside(){
+		card::lookInside();
+		list::cardFiles.draw();	
+	}
+	
+	void newFolder(){
+		//void setKeyboardContext(std::function<void(const char*)> function, const char* name, const int maxLength){
+		all::setKeyboardContext(card::newFolder, []{return "";}, "Folder Name", 64);
+	}
+	
+	void saveAll(){
+		all::setKeyboardContext(card::saveAll, []{return "";}, "File Name", 64);
+		list::cardFiles.draw();	
+	}
+	
+	void loadAllFromActive(){
+		card::loadAllFromActive();
+		list::cardFiles.draw();	
+	}
+	
+	void renameActive(){
+		all::setKeyboardContext(card::renameActive, []{return card::getActiveName();}, "Rename Entry", 64);
+	}	
+	
+	void deleteActive(){
+		modal::initiateModal(
+			"Delete file?", 
+			{
+				{"No",  nullFunc},
+				{"Yes", []{card::deleteActive();list::cardFiles.draw();	}}
 			}
-		if(card::fileExists(name) && checkFileExists){
-			modal::initiateModal(
-				"Overwrite file?", 
-				{
-					{"No",  nullFunc},
-					{"Yes", []{savePatternAsToCard(false);}}
-				}
-			);
-			return; //Do not save if file exists
-		}
-		Sequencing::getActivePattern().saveToCard();
+		);
 	}
 		
-	void savePatternAsToCard(){
-		savePatternAsToCard(true);
-	}
 	
-	void enterPatternName(const int button){
-		if(button < gc::numberOfCharacters-2){
-			addCharToPatternName(gc::chars[button]);
-		}
-		else if (button < gc::numberOfCharacters-1){
-			removeCharFromPatternName();
-		}
-		else if (button < gc::numberOfCharacters){
-			savePatternAsToCard();
-		}
-	}
+	void copy(){
+		card::copy();
+		list::cardFiles.draw();	
+	}	
 	
-	void savePatternToCard(){//Save over
-		savePatternAsToCard(false);//Skip file exists check - save over or save new 
-	}
+	void cut(){
+		card::cut();
+		list::cardFiles.draw();	
+	}	
+
+	void paste(){
+		card::paste();
+		list::cardFiles.draw();	
+	}		
+	
+	// void toggleSaveMode(){
+		// settings::isInSaveMode = !settings::isInSaveMode;
+	// }
+	
+	// void toggleDefaultSaveLocation(){
+		// settings::saveToLastLocation = !settings::saveToLastLocation;
+	// }
+	
+	// void toggleOverwrite(){
+		// settings::overwriteExisting = !settings::overwriteExisting;
+	// }
 		
 	void doCardFunction(const int button){
 		list::cardView.doFunc(button);
@@ -780,7 +864,7 @@ namespace pattUtils{
 	void loadPatternToActiveTrack(){
 		const int32_t newPattern = loadPatternToMemory();
 		if(newPattern != -1){
-			Sequencing::getActiveTrack().switchPattern(static_cast<uint16_t>(newPattern));
+			Sequencing::getActiveTrack().switchPattern(static_cast<uint32_t>(newPattern));
 			draw::patternNameAndNumber();
 			}
 		}
@@ -788,24 +872,15 @@ namespace pattUtils{
 	void loadPatternFromCardToTrackBank(){
 		// const int16_t newPattern = loadPatternToMemory();
 		// if(newPattern != -1){
-			// Sequencing::trackArray[editTrack].addPatternToBank(newPattern);
+			// Sequencing::getActiveTrack().addPatternToBank(newPattern);
 			// }
 		}
 		
-	void deletePatternFromCard(){
-		modal::initiateModal(
-			"Delete file?", 
-			{
-				{"No",  nullFunc},
-				{"Yes", []{card::deletePattern(currentLoadPatternName);}}
-			}
-			);
-		}
 	void renamePatternOnCard(){
 		
 		}	
 	void connectToCard(){
-		card::setup();
+		card::begin();
 		}
 	}//End Pattutils namespace
 namespace pattSwitch{
@@ -816,9 +891,9 @@ namespace pattSwitch{
 		// static scheduled::eventID switchEvent;
 		// if(firstPress){
 			// switchEvent = scheduled::newEvent([button](){
-				// if(Sequencing::trackArray[editTrack].doesTrackBankHavePattern(button)){
-					// patMem::pattern_t patt = Sequencing::trackArray[editTrack].getTrackBankPattern(button);
-					// Sequencing::trackArray[editTrack].switchPattern(patt);
+				// if(Sequencing::getActiveTrack().doesTrackBankHavePattern(button)){
+					// patMem::pattern_t patt = Sequencing::getActiveTrack().getTrackBankPattern(button);
+					// Sequencing::getActiveTrack().switchPattern(patt);
 					// interface::pattSwitch::selectedPattern = patt.getAddress();
 					// draw::updateScreen();
 				// } else {
@@ -832,7 +907,7 @@ namespace pattSwitch{
 		// else{
 			// scheduled::clearEvent(switchEvent);
 			// const int newPattern = (lastKey * 16) + button;
-			// Sequencing::trackArray[editTrack].switchPattern(newPattern);
+			// Sequencing::getActiveTrack().switchPattern(newPattern);
 			// interface::pattSwitch::selectedPattern = newPattern;
 			// firstPress = true;
 			// list::memPatts.draw();
@@ -845,9 +920,9 @@ namespace pattSwitch{
 		static int lastKey;
 		if(firstPress){
 			scheduled::newEvent(scheduled::lOE::patternSwitch, [button](){
-				if(Sequencing::trackArray[editTrack].doesTrackBankHavePattern(button)){
-					patMem::pattern_t patt = Sequencing::trackArray[editTrack].getTrackBankPattern(button);
-					Sequencing::trackArray[editTrack].switchPattern(patt);
+				if(Sequencing::getActiveTrack().doesTrackBankHavePattern(button)){
+					patMem::pattern_t patt = Sequencing::getActiveTrack().getTrackBankPattern(button);
+					Sequencing::getActiveTrack().switchPattern(patt);
 					interface::pattSwitch::selectedPattern = patt.getAddress();
 					draw::updateScreen();
 				} else {
@@ -860,8 +935,8 @@ namespace pattSwitch{
 		} 
 		else{
 			scheduled::clearEvent(scheduled::lOE::patternSwitch);
-			const uint16_t newPattern = (lastKey * 16) + button;
-			Sequencing::trackArray[editTrack].switchPattern(newPattern);
+			const uint32_t newPattern = (lastKey * 16) + button;
+			Sequencing::getActiveTrack().switchPattern(newPattern);
 			interface::pattSwitch::selectedPattern = newPattern;
 			firstPress = true;
 			list::memPatts.draw();
@@ -870,12 +945,12 @@ namespace pattSwitch{
 	}
 		
 	void addPatternToActiveTrack(){
-		Sequencing::trackArray[editTrack].switchPattern(selectedPattern);
+		Sequencing::getActiveTrack().switchPattern(selectedPattern);
 		draw::patternNameAndNumber();
 	}
 	
 	void removePatternFromTrackBank(const int bankPos){
-		Sequencing::trackArray[editTrack].removePatternFromBank(bankPos);
+		Sequencing::getActiveTrack().removePatternFromBank(bankPos);
 	}
 	
 	void removePatternFromTrackBankInitiate(){
@@ -885,14 +960,15 @@ namespace pattSwitch{
 			);
 		}
 		
-	void clearPatternWhereItIsUsed(const uint16_t patNum){//Doesn't deal with arrangement
+	void clearPatternWhereItIsUsed(const uint32_t patNum){//Doesn't deal with arrangement
+		//TODO: sort out arrangement as the code Doesn't deal with arrangement");
 		for(int i = 0; i<16; i++){
-			Sequencing::trackArray[i].removePatternFromBankIfExists(patNum);
-			Sequencing::trackArray[i].removePatternFromTrackIfActive(patNum);
+			Sequencing::getTrack(i).removePatternFromBankIfExists(patNum);
+			Sequencing::getTrack(i).removePatternFromTrackIfActive(patNum);
 		}
 		for(int i = 0; i< arrangement::numberOfArrangements; i++){
 			for(int j = 0; j< gc::numberOfTracks; j++){
-				arrangement::arrangeChannels[i][j].deletePatternIfFound({patNum});
+				arrangement::getArrangeChannel(i,j).deletePatternIfFound({patNum});
 			}
 		}
 	}
@@ -905,14 +981,14 @@ namespace pattSwitch{
 	}
 	
 	void addPatternToTrackBank(){
-		Sequencing::trackArray[editTrack].addPatternToBank({selectedPattern});
+		Sequencing::getActiveTrack().addPatternToBank({selectedPattern});
 	}
 	
 	void newBlankPattern(){
-		patMem::pattern_t newPattern = Sequencing::trackArray[editTrack].newPattern();
+		patMem::pattern_t newPattern = Sequencing::getActiveTrack().newPattern();
 		if(newPattern.isValid()){
-			if(Sequencing::trackArray[editTrack].areTrackBankSlotsAvailable()){
-				Sequencing::trackArray[editTrack].addPatternToBank(newPattern.getAddress());
+			if(Sequencing::getActiveTrack().areTrackBankSlotsAvailable()){
+				Sequencing::getActiveTrack().addPatternToBank(static_cast<uint32_t>(newPattern.getAddress()));
 				}
 			list::memPatts.draw();
 			draw::patternNameAndNumber();
@@ -928,13 +1004,13 @@ namespace pattSwitch{
 			list::memPatts.draw();
 			draw::patternNameAndNumber();
 			}
-		if(Sequencing::trackArray[editTrack].areTrackBankSlotsAvailable()){
-			Sequencing::trackArray[editTrack].addPatternToBank(newPattern);
+		if(Sequencing::getActiveTrack().areTrackBankSlotsAvailable()){
+			Sequencing::getActiveTrack().addPatternToBank(newPattern);
 			}
 		}
 		
 	void clearPatternFromTrack(){
-		Sequencing::trackArray[editTrack].removePatternFromTrack();
+		Sequencing::getActiveTrack().removePatternFromTrack();
 		draw::patternNameAndNumber();
 		}
 		
@@ -953,7 +1029,7 @@ namespace record{
 	
 	void clearNoteBuffer(){
 		for(int i = 0; i< Sequencing::maxRecordingNotes; i++){
-			Sequencing::recordNoteBuffer[i].n.clear();
+			Sequencing::getRecordingNote(i).n.clear();
 		}
 	}
 	
@@ -967,26 +1043,26 @@ namespace record{
 					interface::editNotes::triggerNote(key);
 					return;
 				}
-				Sequencing::trackArray[editTrack].addPatternToBank(newPatt);
+				Sequencing::getActiveTrack().addPatternToBank(newPatt);
 			}
 			//Which step to go on:
 			int pitch = gPFK(key);
 			//Look for note in array:
 			bool addedNote = false;
 			for(int i = 0; i<Sequencing::maxRecordingNotes; i++){//See if the note is there already:
-				if(Sequencing::recordNoteBuffer[i].n.isValid() && Sequencing::recordNoteBuffer[i].n.getPitch() == pitch){
-					Sequencing::recordNoteBuffer[i].p = Sequencing::trackArray[editTrack].getPlayPosition();
-					Sequencing::recordNoteBuffer[i].n.setLength({0, 0, isShiftHeld});//If shift is held, length is set to one and will not be added
-					// lg(Sequencing::recordNoteBuffer[i].n.getLength().getValue());
+				if(Sequencing::getRecordingNote(i).n.isValid() && Sequencing::getRecordingNote(i).n.getPitch() == pitch){
+					Sequencing::getRecordingNote(i).p = Sequencing::getActiveTrack().getPlayPosition();
+					Sequencing::getRecordingNote(i).n.setLength({0, 0, isShiftHeld});//If shift is held, length is set to one and will not be added
+					// lg(Sequencing::getRecordingNote(i).n.getLength().getValue());
 					addedNote = true;
 					break;
 				}
 			}
 			if(!addedNote){//If the note is not there already:
 				for(int i = 0; i<Sequencing::maxRecordingNotes; i++){
-					if(!Sequencing::recordNoteBuffer[i].isValid()){
-						Sequencing::recordNoteBuffer[i].n.setNote(pitch, editVelocity, {0, 0, isShiftHeld}); //Length represents is shift held. Real length is not known at this stage
-						Sequencing::recordNoteBuffer[i].p = Sequencing::trackArray[editTrack].getPlayPosition();
+					if(!Sequencing::getRecordingNote(i).isValid()){
+						Sequencing::getRecordingNote(i).n.setNote(pitch, editVelocity, {0, 0, isShiftHeld}); //Length represents is shift held. Real length is not known at this stage
+						Sequencing::getRecordingNote(i).p = Sequencing::getActiveTrack().getPlayPosition();
 						addedNote = true;
 						break;
 					}
@@ -1006,17 +1082,17 @@ namespace record{
 		if(Sequencing::isSeqPlaying()){
 			uint8_t pitch = gPFK(key);
 			for(int i = 0; i<Sequencing::maxRecordingNotes; i++){
-				if(Sequencing::recordNoteBuffer[i].n.getPitch() == pitch){
-					if(!isShiftHeld && Sequencing::recordNoteBuffer[i].n.getLength().getValue() != 1){
+				if(Sequencing::getRecordingNote(i).n.getPitch() == pitch){
+					if(!isShiftHeld && Sequencing::getRecordingNote(i).n.getLength().getValue() != 1){
 						// lg("test: ");
-						// lg(Sequencing::recordNoteBuffer[i].n.getLength().getValue());
-						Sequencing::notePos np = Sequencing::recordNoteBuffer[i];
+						// lg(Sequencing::getRecordingNote(i).n.getLength().getValue());
+						Sequencing::notePos np = Sequencing::getRecordingNote(i);
 						//check note length and do not add if length equals one
-						bool isMono = Sequencing::trackArray[editTrack].getTrackMode() == Sequencing::trackType::mono;
-						patMem::position length = patMem::subtract(Sequencing::trackArray[editTrack].getPlayPosition(), np.p, Sequencing::trackArray[editTrack].getLength());
+						bool isMono = Sequencing::getActiveTrack().getTrackMode() == Sequencing::trackType::mono;
+						patMem::position length = patMem::subtract(Sequencing::getActiveTrack().getPlayPosition(), np.p, Sequencing::getActiveTrack().getLength());
 						Sequencing::getActiveTrack().addOrUpdateNote({pitch, np.n.getVelocity(), length, editAccent, editLegato}, np.p, isMono);
 					}
-					Sequencing::recordNoteBuffer[i].n.clear();
+					Sequencing::getRecordingNote(i).n.clear();
 					scheduled::newEvent(scheduled::lOE::drawPianoRoll, []{
 						draw::drawPianoRoll(false);
 					},0);
@@ -1033,17 +1109,23 @@ namespace record{
 		recording = !recording;
 		LEDfeedback::showExtras(LEDfeedback::getLEDSet(buttons::keySet::extra));
 		draw::recordIcon();
+		//If we are now recording, and not only from external:
+		modes::focusedContext newContext = recording && !settings::recordOnlyFromExternal ? modes::focusedContext::keyboardPiano : modes::focusedContext::none;
+		modes::setDialog(newContext);
 	}
 	
 }//End record namespace
 namespace modals{
 	void doModalFunction(const int num){
 		modal::doFunction(num);
+		modes::clearDialog();
 		}
 	void doModalNumFunction(const int num){
 		modal::doNumFunction(num);
+		modes::clearDialog();
 		}
 }//End modals namespace
+
 namespace all{
 	void setTempo(const double tempo){
 		Sequencing::setTempo(tempo);
@@ -1094,6 +1176,7 @@ namespace all{
 		isShiftHeld = true;
 		if(settings::showHelp){
 			functionDescriptions::displayDescriptions();
+			draw::modeGrid();
 			helpHasTriggered = true;
 		}
 	}
@@ -1102,7 +1185,7 @@ namespace all{
 		// lgc("startButton:");
 		// lg(Sequencing::seqSta[static_cast<int>(Sequencing::seqStatus)]);
 		using namespace Sequencing;
-		switch(seqStatus){
+		switch(Sequencing::getSequencerStatus()){
 			case sequencerStatus::paused:
 				Sequencing::continueSequencer();
 				return;
@@ -1119,7 +1202,7 @@ namespace all{
 		// lgc("stopButton:");
 		// lg(Sequencing::seqSta[static_cast<int>(Sequencing::seqStatus)]);
 		using namespace Sequencing;
-		switch(seqStatus){
+		switch(Sequencing::getSequencerStatus()){
 			case sequencerStatus::paused:
 			case sequencerStatus::playing:
 				Sequencing::stopSequencer();
@@ -1135,18 +1218,78 @@ namespace all{
 		// notifications::notification::returnToMode();
 		// }
 	void exitError(const int button){
-		notifications::notification::returnToMode();
-		}
+		//lg("exitError");
+		modes::clearDialog();
+	}
 		
 	void sendAllNotesOff(){
 		MIDIports::sendAllNotesOff();
 	}
+	
+	const int keyboardBufferLength = 64;
+	size_t activeSetterLength = 999;
+	char textBuffer[keyboardBufferLength] = {0};
+	std::function<void(const char*)> keyboardSetterFunction = nullptr;
+	
+	void drawTextBuffer(){
+		const bool screenLocked = scrn::isScreenLocked();
+		scrn::setScreenLock(false);
+		scrn::writeFillRect(30, 50, 300, 20, scrn::getThemeColour(scrn::td::bg));
+		scrn::write(30, 50, textBuffer);
+		lg(textBuffer);
+		scrn::setScreenLock(screenLocked);
+	}
+	
+	void setKeyboardContext(std::function<void(const char*)> function, std::function<const char*()> currentName, const char* fieldName, const int maxLength){
+		keyboardSetterFunction = function;
+		activeSetterLength = maxLength;
+		strcpy(textBuffer, currentName());
+		scrn::writeFillRect(25, 25, 430, 50, scrn::getThemeColour(scrn::td::bg));
+		scrn::writeEdgeRect(25, 25, 430, 50, scrn::getThemeColour(scrn::td::acc1));
+		scrn::write(30, 30, fieldName);
+		drawTextBuffer();
+		draw::keyboardButtons();
+		modes::setDialog(modes::focusedContext::keyboardText);
+		scrn::setScreenLock(true);
+	}
+		
+	void keyboardTypePress(const int shiftedNum){
+		//If a character, add it
+		if(shiftedNum < gc::numberOfCharacters-2){
+			if(strlen(textBuffer) < activeSetterLength - 1){
+				strcatc(textBuffer, gc::chars[shiftedNum]);
+				drawTextBuffer();
+			} else {
+				notifications::nameFull.display();
+			}
+		}
+		//If a backspace, backspace
+		else if (shiftedNum < gc::numberOfCharacters-1){
+			const int textLength = strlen(textBuffer);
+			if(textLength > 0){
+				textBuffer[textLength-1] = 0;
+				drawTextBuffer();
+			} else {
+				notifications::nameEmpty.display();
+			}
+		}
+		//If "save", save it
+		else if (shiftedNum < gc::numberOfCharacters){
+			if(keyboardSetterFunction){
+				keyboardSetterFunction(textBuffer);
+				if(settings::clearNameBufferOnEnter){
+					textBuffer[0] = 0;
+				}
+			} else {
+				lg("error");
+			}
+			modes::clearDialog();
+			scrn::setScreenLock(false);
+		}
+	}
 		
 		
 }//End all namespace
-	
-
-
 
 namespace colour{
 	int editColourDescriptor = 0;
@@ -1198,7 +1341,7 @@ namespace arrange{
 	int appendNewPatternsForXBars = 0;
 	int arrangementEnd = 0; //For adding new patterns to end of arrangement
 	int addLength = 8;
-	volatile bool useArrangeMode = false; //Whether each tracks takes patterns from the arrangeMode
+	bool useArrangeMode = false; //Whether each tracks takes patterns from the arrangeMode
 	struct cursorPos { enum cp{ 
 		centre	,
 		first	,
@@ -1241,8 +1384,8 @@ namespace arrange{
 	}
 	
 	void selectTrackFromBank(const int button){
-		if(Sequencing::trackArray[editTrack].doesTrackBankHavePattern(button)){
-			editPattern = Sequencing::trackArray[editTrack].getTrackBankPattern(button);
+		if(Sequencing::getActiveTrack().doesTrackBankHavePattern(button)){
+			editPattern = Sequencing::getActiveTrack().getTrackBankPattern(button);
 		}
 	}
 	
@@ -1267,7 +1410,7 @@ namespace arrange{
 			draw::arrangeChaser();
 		} else {
 			editTimelinePosition = constrain(editTimelinePosition+dir, 0 , arrangement::maxPosition);
-			highlightedPattern = arrangement::arrangeChannels[activeArrangement][editTrack].getCurrentPattern(editTimelinePosition);
+			highlightedPattern = arrangement::getArrangeChannel(activeArrangement,editTrack).getCurrentPattern(editTimelinePosition);
 			
 			switch(cursorPosition){
 				case cursorPos::centre:
@@ -1314,7 +1457,7 @@ namespace arrange{
 		// lg(*(arrangement::node(35, true).getPointer()));
 		// lg("aPTT");
 		for(int i=0; i<addLength; i++){
-			arrangement::arrangeChannels[activeArrangement][editTrack].addPattern(editTimelinePosition + i, editPattern);
+			arrangement::getArrangeChannel(activeArrangement,editTrack).addPattern(editTimelinePosition + i, editPattern);
 		}
 		//int setIntToEmptyPosition = hasAddedEmptyPattern ? 1 : 0; //Subtract one from if the last pattern added was empty
 		arrangementEnd = max(editTimelinePosition + 1 + addLength, arrangementEnd);
@@ -1350,38 +1493,12 @@ namespace arrange{
 	}
 	
 	void setLoopStart(){
-		stopTimer();
-		Sequencing::loopStart = editTimelinePosition;
-		
-		int loopEnd = Sequencing::loopEnd;
-		int loopStart = Sequencing::loopStart;
-		
-		if(Sequencing::loopStart > loopEnd){
-			Sequencing::loopStart = loopEnd;
-			Sequencing::loopEnd = loopStart;
-		}
-		else if (loopStart == loopEnd){
-			Sequencing::loopEnd++;
-		}
-		startTimer();
+		Sequencing::setLoopStart(editTimelinePosition);
 		draw::updateScreen();
 	}
 	
 	void setLoopEnd(){
-		stopTimer();
-		Sequencing::loopEnd = editTimelinePosition + 1;
-		
-		int loopEnd = Sequencing::loopEnd;
-		int loopStart = Sequencing::loopStart;
-		
-		if(Sequencing::loopStart > loopEnd){
-			Sequencing::loopStart = loopEnd;
-			Sequencing::loopEnd = loopStart;
-		}
-		else if (loopStart == loopEnd){
-			Sequencing::loopEnd++;
-		}
-		startTimer();
+		Sequencing::setLoopEnd(editTimelinePosition+1);
 		draw::updateScreen();
 	}
 	
@@ -1398,9 +1515,9 @@ namespace arrange{
 	
 } //end arrange namespace
 namespace MIDIPortScreen{
-	using namespace MIDIports;
-	std::bitset<numberOfInPorts> selectedInputs;
-	std::bitset<numberOfOutPorts> selectedOutputs;
+	
+	std::bitset<gc::numberOfMIDIIns> selectedInputs;
+	std::bitset<gc::numberOfMIDIOuts> selectedOutputs;
 	
 	bool isInputSelected = true; //Else output is selected
 	
@@ -1409,11 +1526,11 @@ namespace MIDIPortScreen{
 	}
 	
 	void setActivePort(const int button){
-		if(button >= numberOfInPorts + numberOfOutPorts){
+		if(button >= gc::numberOfMIDIIns + gc::numberOfMIDIOuts){
 			notifications::dataOutOfRange.display(); 
 			return;
 			}
-		if(button<numberOfInPorts){
+		if(button<gc::numberOfMIDIIns){
 			if(!isShiftHeld){
 				selectedInputs.reset();
 			}
@@ -1424,7 +1541,7 @@ namespace MIDIPortScreen{
 			if(!isShiftHeld){
 				selectedOutputs.reset();
 			}
-			selectedOutputs.flip(button-numberOfInPorts);
+			selectedOutputs.flip(button-gc::numberOfMIDIIns);
 			isInputSelected = false;
 		}
 		setCorrectListActive();
@@ -1434,7 +1551,7 @@ namespace MIDIPortScreen{
 	//Outputs:
 	void toggleSendClock(){
 		forEachIf(selectedOutputs, 
-			[](unsigned int n){outputs[n].toggleSendClock();}
+			[](unsigned int n){MIDIports::getMIDIOutputSettings(n).toggleSendClock();}
 			//waste
 		);
 		draw::routingMatrix();
@@ -1442,7 +1559,7 @@ namespace MIDIPortScreen{
 	
 	void toggleSendStartStop(){
 		forEachIf(selectedOutputs, 
-			[](unsigned int n){outputs[n].toggleSendStartStop();}
+			[](unsigned int n){MIDIports::getMIDIOutputSettings(n).toggleSendStartStop();}
 			//waste
 		);
 		draw::routingMatrix();
@@ -1450,7 +1567,7 @@ namespace MIDIPortScreen{
 	
 	void toggleSendSeqControl(){
 		forEachIf(selectedOutputs, 
-			[](unsigned int n){outputs[n].toggleSendSeqControl();}
+			[](unsigned int n){MIDIports::getMIDIOutputSettings(n).toggleSendSeqControl();}
 			//waste
 		);
 		draw::routingMatrix();
@@ -1458,7 +1575,7 @@ namespace MIDIPortScreen{
 	
 	void toggleSendSSP(){
 		forEachIf(selectedOutputs, 
-			[](unsigned int n){outputs[n].toggleSendSSP();}
+			[](unsigned int n){MIDIports::getMIDIOutputSettings(n).toggleSendSSP();}
 			//waste
 		);
 		draw::routingMatrix();
@@ -1468,7 +1585,7 @@ namespace MIDIPortScreen{
 	//Inputs:
 	void toggleReceiveClock(){
 		forEachIf(selectedInputs, 
-			[](unsigned int n){inputs[n].toggleReceiveClock();}
+			[](unsigned int n){MIDIports::getMIDIInputSettings(n).toggleReceiveClock();}
 			//waste
 		);
 		draw::routingMatrix();
@@ -1476,7 +1593,7 @@ namespace MIDIPortScreen{
 	
 	void toggleReceiveStartStop(){
 		forEachIf(selectedInputs, 
-			[](unsigned int n){inputs[n].toggleReceiveStartStop();}
+			[](unsigned int n){MIDIports::getMIDIInputSettings(n).toggleReceiveStartStop();}
 			//waste
 		);
 		draw::routingMatrix();
@@ -1484,7 +1601,7 @@ namespace MIDIPortScreen{
 	
 	void toggleReceiveSeqControl(){
 		forEachIf(selectedInputs, 
-			[](unsigned int n){inputs[n].toggleReceiveSeqControl();}
+			[](unsigned int n){MIDIports::getMIDIInputSettings(n).toggleReceiveSeqControl();}
 			//waste
 		);
 		draw::routingMatrix();
@@ -1492,36 +1609,36 @@ namespace MIDIPortScreen{
 	
 	void toggleReceiveSSP(){
 		forEachIf(selectedInputs, 
-			[](unsigned int n){inputs[n].toggleReceiveSSP();}
+			[](unsigned int n){MIDIports::getMIDIInputSettings(n).toggleReceiveSSP();}
 			//waste
 		);
 		draw::routingMatrix();
 	}
 	
-	void setRecordType         (const int button){
+	void setRecordType(const int button){
 		forEachIf(selectedInputs, 
-			[button](unsigned int n){inputs[n].setRecordType(button);}
+			[button](unsigned int n){MIDIports::getMIDIInputSettings(n).setRecordType(button);}
 			//waste
 		);
 		draw::routingMatrix();
 	}
 	void setPreviewType        (const int button){
 		forEachIf(selectedInputs, 
-			[button](unsigned int n){inputs[n].setPreviewType(button);}
+			[button](unsigned int n){MIDIports::getMIDIInputSettings(n).setPreviewType(button);}
 			//waste
 		);
 		draw::routingMatrix();
 	}
 	void setRoutingType        (const int button){
 		forEachIf(selectedInputs, 
-			[button](unsigned int n){inputs[n].setRoutingType(button);}
+			[button](unsigned int n){MIDIports::getMIDIInputSettings(n).setRoutingType(button);}
 			//waste
 		);
 		draw::routingMatrix();
 	}
 	void setRoutingDestination (const int button){
 		forEachIf(selectedInputs, 
-			[button](unsigned int n){inputs[n].setRoutingDestination(button);}
+			[button](unsigned int n){MIDIports::getMIDIInputSettings(n).setRoutingDestination(button);}
 			//waste
 		);
 		draw::routingMatrix();
@@ -1575,7 +1692,7 @@ namespace debug{
 	
 	void changeSelectedColumn(const int dir){
 		if(dir){
-			if(selectedBlock<blocks::numberOfBlocks-1){
+			if(selectedBlock < blocks::getMaxBlockNum()){
 				selectedBlock++;
 			}
 		}
@@ -1587,10 +1704,10 @@ namespace debug{
 	void changeSelectedRow(const int dir){
 		int rowWidth = zoomed ? draw::memoryUsageConstants::zoomedBlockWidth : draw::memoryUsageConstants::blockWidth;
 		if(dir){
-			if(selectedBlock<blocks::numberOfBlocks - 1 - rowWidth){
+			if(selectedBlock < blocks::getMaxBlockNum() - rowWidth){
 				selectedBlock += rowWidth;
 			} else {
-				selectedBlock = blocks::numberOfBlocks - 1;
+				selectedBlock = blocks::getMaxBlockNum();
 			}
 		} else {
 			if(selectedBlock > rowWidth){
@@ -1786,7 +1903,7 @@ namespace modeSelect{
 		}
 	}
 	
-	void setup(){
+	void begin(){
 		getRelevantModes();
 	}
 }//end modeSelect namespace
@@ -1871,8 +1988,8 @@ namespace process{
 		static int lastKey;
 		if(firstPress){
 			scheduled::newEvent(scheduled::lOE::patternSwitch, [button](){
-				if(Sequencing::trackArray[editTrack].doesTrackBankHavePattern(button)){
-					patMem::pattern_t patt = Sequencing::trackArray[editTrack].getTrackBankPattern(button);
+				if(Sequencing::getActiveTrack().doesTrackBankHavePattern(button)){
+					patMem::pattern_t patt = Sequencing::getActiveTrack().getTrackBankPattern(button);
 					setActivePatternForProcess(patt);
 				} else {
 					notifications::patternDoesNotExist.display();
@@ -1884,7 +2001,7 @@ namespace process{
 		} 
 		else{
 			scheduled::clearEvent(scheduled::lOE::patternSwitch);
-			const uint16_t newPattern = (lastKey * 16) + button;
+			const uint32_t newPattern = (lastKey * 16) + button;
 			setActivePatternForProcess(newPattern);
 			firstPress = true;
 		}
@@ -1932,7 +2049,8 @@ namespace process{
 	}
 	
 	void goToProcess(const int position){
-		Serial.print("implement this");
+		//Serial.print("implement this");
+		//TODO: THIS
 	}
 	
 	void changeViewMode();
@@ -1982,8 +2100,7 @@ namespace copy{
 		
 		patMem::pattern_t tempBuffer = patMem::pattern_t{true};
 		if(!tempBuffer.isValid()){return;}
-		tempBuffer.clearData();
-		tempBuffer.clearNotes();
+		tempBuffer.clearAll();
 		
 		forEachStep([&tempBuffer](patMem::position p) mutable{
 			//patMem::position offsetDestinationPos = patMem::subtract(p, p, {true});
@@ -1997,6 +2114,7 @@ namespace copy{
 			process::activePattern.copyStep(process::sourcePattern, p, offsetDestinationPos, clearBeforeCopy);
 		});
 		
+		tempBuffer.clearAll();
 		tempBuffer.destroy();
 	}
 	
@@ -2007,11 +2125,9 @@ namespace copy{
 
 }//end copy namespace
 namespace quantise{
-	uint8_t quantiseLevel = 1;
-	
 	bool wrapQuantise = true;
 	
-	uint8_t quantiseLevels[]{
+	const uint8_t quantiseLevels[]{
 		1,2,4,8,16,32,64,
 	};
 	
@@ -2025,18 +2141,35 @@ namespace quantise{
 		"1/64"	,
 	};
 	
-	void apply(){
-		forEachStep([](patMem::position p){
-			process::activePattern.quantiseStep(p, quantiseLevel, wrapQuantise);
+	//Originally, one woudl set the quantise level and then apply it with a separate click. This selects and applies it
+	void apply(const uint8_t level){
+		const uint8_t leveloftwo = quantiseLevels[level];
+		forEachStep([leveloftwo](patMem::position p){
+			process::activePattern.quantiseStep(p, leveloftwo, wrapQuantise);
 		}, applyOnEntirePattern);
 	}
 	
-	void setQuantiseLevel(int p_quantiseLevel){
-		quantiseLevel = p_quantiseLevel;
-		apply();
+	void applyQuantise(int p_quantiseLevel){
+		apply(p_quantiseLevel);
 	}
 	
 }//end quantise namespace
+
+namespace dataEdit{
+	
+	dataEvents::dataEventType activeEventType;
+	
+	void addEventOnStep(const patMem::position p){
+		
+	}
+	
+	void editParameterOrData(const int button){
+
+
+	}
+	
+	
+}//end dataEvents namespace
 
 }//End interface namespace
 #endif

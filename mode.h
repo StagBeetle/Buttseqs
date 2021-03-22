@@ -4,6 +4,7 @@
 #include <vector>
 #include "Utility.h"
 #include "forwarddec.h"
+#include "serial.h"
 
 namespace modes{
 	
@@ -51,13 +52,13 @@ class mode{
 		std::function<void(LEDfeedback::LEDSet&)>	LEDDisplays[buttons::keySet::max];
 		std::function<void(int)>	encoderFunctions[gc::numberOfEncoders] = {};
 		list::listController*	activeList	= nullptr;
-		const std::vector<buttons::keySet::ks> 	heldFuncSetterKeysets	= {};//First is where the setter will be called, second is what it will be set with
+		const std::vector<buttons::keySet::ks> 	heldFuncSetterKeysets	= {};//First is the keyset which calls the setter e.g. note, second is what it will be set with e.g. note
 		const bool	usesHeldSetter	= false;
 		const bool	enableChase	= false;	//Show activePattern chaser LEDs on steps
 		const bool	doNotReturn	= false;	//Can this be used as last function
 		const bool	clearScreen	= true;	//Clear screen on switch
 		const bool	labelled	= true;	//Should a label be displayed on switch
-		const bool	allButtonsOverride	= false;	//All buttons delegate to the step functions
+		const bool	allButtonsOverride	= false;	//All buttons delegate to the step functions (This is unused now)
 		const int	ID;
 	public:
 		static uint8_t counter;
@@ -89,9 +90,11 @@ class mode{
 };
 extern bool operator == (const mode& one, const mode& other);
 extern bool operator != (const mode& one, const mode& other);
-extern mode editNotes, editSteps, editPattern, editCC, patternProcess, mute, transpose, settings, chain, performance, patternUtils, patternSwitch, rename, cardView/*, modal, modalNum, error*/, copy, themeEdit, arrange, quantise, MIDIRouting, shiftNotes, debug, memoryInspect, selection, modeSelect, LFO, process, sentinel;
+extern mode editNotes, editSteps, editPattern, editDataEvent, patternProcess, mute, transpose, settings, chain, performance, patternUtils, patternSwitch, cardView/*, modal, modalNum, error*/, copy, themeEdit, arrange, quantise, MIDIRouting, shiftNotes, debug, memoryInspect, selection, modeSelect, LFO, process, sentinel;
 
 extern mode* buttons[gc::keyNum::modes];
+
+extern mode& getModeFromButtons(const int i); //Put this in the .cpp
 
 extern mode& getActiveMode();
 extern bool checkActive(const mode& m);
@@ -109,8 +112,8 @@ extern void forEachMode(const std::function<void(mode&)> func);
 extern mode& getModeByID(const int ID);
 extern bool isValid(mode& m);
 
-extern void setDialog(const dialogType type);//Has an error or a modal popped up
-extern void clearDialog();//Has an error or a modal popped up
+extern void setDialog(const focusedContext type);//Has an error or a modal popped up
+extern void clearDialog();//Clear Dialog
 
 const static int numberOfModes = 40;
 

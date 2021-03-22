@@ -32,7 +32,7 @@ enco encoders[numberOfEncoders] = {
 	{28, 29},
 };
 
-void setup(const std::function<void(int, int)> newAllocator) {
+PROGMEM void begin(const std::function<void(int, int)> newAllocator) {
 	allocator = newAllocator;
 }
 

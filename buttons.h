@@ -9,9 +9,9 @@
 #include "mode.h"
 
 namespace buttons{
-	extern void setup(const std::function<void(void)> callback);
+	extern void begin(const std::function<void(void)> callback);
 	extern void loop(const bool recordModeNotesOnly = false);//recordModeNotesOnly is a special thing for record mode to stop jitter (I hope)
-		
+	extern void setButton(const int num, const int status);
 }//end namespace
 
 

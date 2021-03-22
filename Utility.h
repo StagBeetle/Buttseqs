@@ -1,9 +1,10 @@
-#ifndef Utility_h
-#define Utility_h
+#pragma once
 
 #include <bitset>	
 #include <vector> 
 #include "scheduled.h"
+#include "compatibility.h"
+#include <limits.h>
 //#include "forwarddec.h"
 
 typedef void (*voidvoid) ();
@@ -86,4 +87,134 @@ void typecopy(volatile T& dst, const volatile T& src){
 	}
 }
 
-#endif
+template <typename C>//C is a container 
+int getNumberOfElements(C& container){
+	int counter = 0;
+	for(auto& element: container){
+		if (!element.isValid()){
+			return counter;
+		}
+		counter++;
+	}
+	return counter;
+}
+
+template <typename C, typename T>//C is a container that holds T
+int getIndexOf(C& container, T item){
+	ASSERT(container.size() < INT_MAX);
+	int counter = 0;
+	for(auto& element: container){
+		if (element == item){
+			return counter;
+		}
+		counter++;
+	}
+	return -1;
+}
+
+template <typename C>//C is a container that holds T
+int getNextFreeIndex(C& container){
+	int counter = 0;
+	for(auto& element: container){
+		if (!element.isValid()){
+			return counter;
+		}
+		counter++;
+	}
+	return -1;
+}
+
+template <typename C, typename T>//C is a container (probably only std::array(not vector)) that holds T
+//Returns if add/update was successful
+bool updateElement(C& container, T item){
+	// lg("udpate lement");
+	//Try to update:
+	for(auto& element: container){
+		if(element == item){
+			element = item;
+			return true;
+		}
+	}
+	//Try to add:	
+	// lg("try:");
+	int nextFreeIndex = getNextFreeIndex(container);
+	if(nextFreeIndex >= 0){
+		container[nextFreeIndex] = item;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+template <typename C, typename T>//C is a container (probably only std::array(not vector)) that holds T
+//Returns how many elements in array
+int removeElement(T& container, T item){
+	int counter = 0;
+	bool hasRemovedElement = false;
+	for(auto& element: container){
+		if(hasRemovedElement){//Shift all future elements forward
+			if(counter+1 < container.size()){//Shift forward
+				element = container[counter+1];
+			} else {
+				element.clear();//Clear last element
+			}
+		} else {
+			if(element == item){
+				element.clear();
+				hasRemovedElement = true;
+				continue; //Do not increment counter
+			}
+		}
+		counter++;
+	}
+	if(hasRemovedElement){
+		return getNumberOfElements(container); 
+	} else {
+		return -1;
+	}
+}
+
+template <typename T, size_t N>
+std::vector<T> arrayToVector(std::array<T, N> container){
+	std::vector<T> returnVec;
+	for(auto& element: container){
+		if (element.isValid()){
+			returnVec.push_back(element);
+		} else {
+			return returnVec;
+		}
+	}
+	return returnVec;
+}
+
+// int [[nodiscard]] toggleElement(T& container, T item){
+	// int counter = 0;
+	// bool hasRemovedElement = false;
+	// for(auto& element: container){
+		// if(hasRemovedElement){//Shift all future elements forward
+			// if(counter+1 < container.size()){//Shift forward
+				// element = container[counter+1];
+			// } else {
+				// element.clear();//Clear last element
+			// }
+		// } else {
+			// if(element == item){
+				// element.clear();
+				// hasRemovedElement = true;
+				// continue; //Do not increment counter
+			// }
+		// }
+		// counter++;
+	// }
+	// if(hasRemovedElement){
+		// return getNumberOfElements(container);
+	// } else {
+		// int nextFreeIndex = getNextFreeIndex(container);
+		// if(nextFreeIndex >= 0){
+			// container[nextFreeIndex] = item;
+			// return nextFreeIndex+1;
+		// } else {
+			// return -1;
+		// }
+	// }
+// }

@@ -50,7 +50,7 @@ namespace modal{
 		};
 	void initiateModal(const char* choice, std::vector<option> options){
 		clearModalFunctionPointers();
-		modes::setDialog(modes::dialogType::modal);
+		modes::setDialog(modes::focusedContext::modal);
 		//lastMode = &returnTo;
 		scrn::write(5, 5, choice);
 		const int numberOfOptions = options.size(); //Do a check to ensure this is less than maxOptions
@@ -74,7 +74,7 @@ namespace modal{
 		modes::clearDialog();
 		}
 	void initiateNumberModal(const char* choice, std::function<void(int)> theFunction){
-		modes::setDialog(modes::dialogType::modalNum);
+		modes::setDialog(modes::focusedContext::modalNum);
 		//lastMode = &returnTo;
 		modalNumFunction = theFunction;
 		notifications::notification n = {choice};

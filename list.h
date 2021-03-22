@@ -39,7 +39,7 @@ namespace list{
 		
 	template<class f = int>class sF{//Initialise with an int for no variable
 		public:
-			sF(volatile f c_parameter = 0, std::function<void()> c_postAction = nullptr, std::vector<int> c_minMax = {}) : 
+			sF(f c_parameter = 0, std::function<void()> c_postAction = nullptr, std::vector<int> c_minMax = {}) : 
 				parameter(c_parameter),
 				postAction(c_postAction),
 				minMax(c_minMax){}
@@ -58,7 +58,7 @@ namespace list{
 
 	template<class f = int>class gF{//Initialise with an int for no variable
 		public:
-			gF(volatile f c_func = 0, std::vector<const char*> c_values = {}) : 
+			gF(f c_func = 0, std::vector<const char*> c_values = {}) : 
 				func(c_func),
 				values(c_values){}
 			void get(char*) const;
@@ -86,6 +86,9 @@ namespace list{
 			virtual std::function<void(int)> getSetter() const{
 				return nullptr;
 			}
+			virtual bool shouldBeHeld(){
+				return false;
+			}
 	};
 	
 	
@@ -93,14 +96,15 @@ namespace list{
 		private:
 			const char*	name;
 			s0 setter;
-			g0	getter;
+			g0 getter;
+			const bool m_shouldBeHeld = false;
 		public:
 			//Boolean variables:
 			template<class b>
-			liElemF(const char* c_name, volatile b& var, std::vector<const char*> c_values, std::function<void()> c_postAction = nullptr) : 
+			liElemF(const char* c_name, b& var, std::vector<const char*> c_values, std::function<void()> c_postAction = nullptr) : 
 				name(c_name),
-				setter(reinterpret_cast<volatile bool*>(&var), c_postAction),//So it can change bools and binary enums the same way
-				getter(reinterpret_cast<volatile bool*>(&var), c_values)
+				setter(reinterpret_cast<bool*>(&var), c_postAction),//So it can change bools and binary enums the same way
+				getter(reinterpret_cast<bool*>(&var), c_values)
 				{}
 			//Single functions:
 			template<class s>
@@ -116,10 +120,11 @@ namespace list{
 				// {}
 			//Int set variables:
 			template<class s, class g> 
-			liElemF(const char* c_name, s c_setter, g c_getter, std::vector<int>c_minMax = {}) : 
+			liElemF(const char* c_name, s c_setter, g c_getter, std::vector<int>c_minMax = {}, const bool c_shouldBeHeld = false) : 
 				name(c_name),
 				setter(c_setter, nullptr, c_minMax),
-				getter(c_getter)
+				getter(c_getter),
+				m_shouldBeHeld(c_shouldBeHeld)
 				{}
 			
 			~liElemF() = default;
@@ -128,7 +133,7 @@ namespace list{
 			void getName(char* outString) const{
 				strcpy(outString, name);
 			}
-			void getData(char* outString) const{
+			void getData(char* outString) const {
 				getter.get(outString);
 			}
 			void operator()(int n){
@@ -139,6 +144,14 @@ namespace list{
 			}
 			std::function<void(int)> getSetter() const{
 				return setter;
+			}
+			// void * operator new(size_t size){
+				// void * p = malloc(size); 
+				// return p; 
+			// }
+			//No need for delete
+			bool shouldBeHeld() override{
+				return m_shouldBeHeld;
 			}
 	};
 	
@@ -178,7 +191,7 @@ namespace list{
 			uint16_t xOffset; //How far along the screen it displays
 			uint16_t clearWidth; //Width to clear
 			const bool allowScroll = false; //Should it scroll?
-			uint8_t maxLines = 8;
+			uint8_t maxLines = 12;
 			const uint16_t dataXCoord = 240;
 			const bool showActive = true;
 		public:
@@ -259,7 +272,7 @@ namespace list{
 			void doFunc(const int button){
 				if(button < length){
 					(*((*liElems)[button]))();
-					}
+				}
 			}
 			
 			bool getAllowScroll(){
@@ -379,48 +392,14 @@ namespace list{
 	
 	class listControllerPatMem : public listController{
 		private:
-			uint16_t previousPatternInList = 0;
+			uint32_t previousPatternInList = 0;
 		public:
-			listControllerPatMem(std::vector<list::liElem*>* c_liElems, const listType c_type, const int c_yOffset, const int c_xOffset, const int c_clearWidth, const bool c_allowScroll, const int c_maxLines, const int c_dataXCoord, const bool c_showActive) : 
-				listController(c_liElems, c_type, c_yOffset, c_xOffset, c_clearWidth, c_allowScroll, c_maxLines, c_dataXCoord, c_showActive){}
-			
-			void draw(){
-				std::vector<list::liElem*>* theListVec = Sequencing::showPatternsInMemory(&interface::pattSwitch::selectedPattern, &previousPatternInList, maxLines);
-				//std::vector<list::liElem*>* theListVec = new std::vector<list::liElem*>;
-				length = (*theListVec).size();
-				liElems = theListVec;
-				listController::draw();
-				list::deleteList(theListVec);
-				liElems = nullptr;
-			}
-			
-			void listDown(){
-				if (interface::pattSwitch::selectedPattern < patMem::getLastPatternNum()){
-					interface::pattSwitch::selectedPattern ++;
-					draw();
-					}
-				}
-				
-			void listUp(){
-				if (interface::pattSwitch::selectedPattern > 0){
-					interface::pattSwitch::selectedPattern = previousPatternInList;
-					draw();
-					}
-				}
-				
-			liElem* listMove(const int dir){
-				if(dir == 1){
-					listUp();
-					}
-				else if (dir == -1){
-					listDown();
-					}
-					return nullptr;
-				}
-			liElem* moveTo(const int pos){
-				//Does not matter?
-				return nullptr;
-				}
+			listControllerPatMem(std::vector<list::liElem*>* c_liElems, const listType c_type, const int c_yOffset, const int c_xOffset, const int c_clearWidth, const bool c_allowScroll, const int c_maxLines, const int c_dataXCoord, const bool c_showActive);
+			void draw();
+			void listDown();
+			void listUp();
+			liElem* listMove(const int dir);
+			liElem* moveTo(const int pos);
 		};//End list control
 	
 	extern listControllerFixed	cardView; //Used in interface.h

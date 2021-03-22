@@ -14,9 +14,10 @@ void setSequencePriority(const int priority){
 
 namespace interface{
 	namespace pattSwitch{
-		uint16_t selectedPattern = 0;
+		uint32_t selectedPattern = 0;
 	}
 	namespace settings{
 		unsigned int buttonHoldDelay = 250;
 	}
 }
+

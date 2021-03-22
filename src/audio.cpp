@@ -59,7 +59,7 @@ float getHzFromNoteNumber(float noteNumber, int frequencyOfA = 440){
 	return frequencyOfA * std::pow (2.0, (noteNumber - 69) / 12.0);
 };
 
-void setup(){
+PROGMEM void begin(){
 	AudioMemory(256);
 	sgtl5000_1.enable();
 	sgtl5000_1.volume(0.8);

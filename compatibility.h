@@ -1,44 +1,24 @@
-#ifndef compatibility_h
-#define compatibility_h
+#pragma once
 //#include "name.c"
 
 extern "C"{
-	int _getpid(){ return -1;}
-	int _kill(int pid, int sig){ return -1; }
-	int _write(){return -1;}
-
-	int __exidx_start(){ return -1;}
-	int __exidx_end(){ return -1; }
+	extern int _getpid();
+	extern int _kill(int pid, int sig);
+	extern int _write();
+	extern int __exidx_start();
+	extern int __exidx_end();
 }
 
 namespace std{
-	void __throw_bad_function_call(){ for(;;){} }
-	void __throw_out_of_range_fmt(char const*, ...){ for(;;){} }
-	void __throw_bad_alloc(){ for(;;){} }
-	void __throw_length_error(char const*){ for(;;){} }
+	extern void __throw_bad_function_call();
+	extern void __throw_out_of_range_fmt(char const*, ...);
+	extern void __throw_bad_alloc();
+	extern void __throw_length_error(char const*);
 }
 
+extern void assertionFailed(const char* file, const int line);//Justs prints to serial
 
-void assertionFailed(const char* file, const int line){
-	Serial.print("Assertion failed on line ");
-	Serial.print(line);
-	Serial.print(" in ");
-	Serial.print(file);
-	Serial.println(" .");
-}
-
-// #define ASSERT(__e) ((__e) ? (void)0 : __assert_func (__FILE__, __LINE__, __ASSERT_FUNC, #__e))
-// #define ASSERT(assertion) (if(!((assertion))){ __assert_func(__FILE__, __LINE__); })
+//#define ASSERT(assertion) if (!(assertion)) assertionFailed(__FILE__, __LINE__)
+	//If this even works, it does not do it in a safe way:
+//#define ASSERT(assertion) if (!(assertion)) assertionFailed(__FILE__, __LINE__); return;
 #define ASSERT(assertion) if (!(assertion)) assertionFailed(__FILE__, __LINE__)
-
-// char* lastCurlyFile = "";
-// int lastCurlyLine = 0;
-
-// void assignLastCurlyBrace(const char* file, const int line){
-	// lastCurlyFile = file;
-	// lastCurlyLine = line;
-// }
-
-//#define { {assignLastCurlyBrace(__FILE__, __LINE__);
-
-#endif

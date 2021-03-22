@@ -1,0 +1,2 @@
+"C:\Program Files (x86)\Arduino\hardware\tools\arm\bin\arm-none-eabi-gdb.exe" "C:\Users\Doctor Rhythm\AppData\Local\Temp\arduino_build_439613\sequencer.ino.elf"
+target remote \\.\COM4

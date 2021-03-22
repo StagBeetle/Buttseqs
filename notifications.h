@@ -20,7 +20,7 @@ namespace notifications{
 			notification() = default; //just for map
 			void display(int lines = 1);
 			void display(std::vector<const char*> extraLines);
-			static void returnToMode();
+			
 	};
 	
 	extern notification memoryFull	;
@@ -28,6 +28,7 @@ namespace notifications{
 	extern notification patternMemoryFull	;
 	extern notification stepFull	; //Trying to add more than 8 notes
 	extern notification nameFull	; //Trying to add more than 8 chars to a pattern name
+	extern notification nameEmpty	; //Trying to add more than 8 chars to a pattern name
 	extern notification noFileName	; //Trying to save pattern with no name
 	extern notification invalidPatternHeaderOnCard	;
 	extern notification invalidPatternOnCard	;
@@ -51,11 +52,14 @@ namespace notifications{
 	extern notification barTooShort	;
 	extern notification noProcess	;
 	extern notification noProcessSpace	;
+	extern notification noDataSpace	;
+	extern notification dataNotFound	;
 	//tification name	;
 	extern notification saved	;
 	extern notification sdCardConnected	;
 	extern notification loadSuccess	;
 	extern notification timeout	;
+	extern notification successfulError	;
 
 	void displayError(const uint8_t type);
 

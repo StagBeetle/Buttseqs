@@ -1,6 +1,7 @@
 #ifndef processes_h
 #define processes_h
 
+#include <stdint.h>
 #include <algorithm>
 #include "blocks.h"	
 #include "patternStorage.h"	//How the patterns are saved in memory
@@ -28,7 +29,7 @@ namespace process{
 	};
 	
 	typedef std::array<const char*, numberOfParameters> nameArray;
-	typedef patMem::noteList (*procFunc_t) (volatile processStack*, patMem::position, dataArray);
+	typedef patMem::noteList (*procFunc_t) ( processStack*, patMem::position, dataArray);
 	
 	class processType {
 		private:
@@ -55,7 +56,7 @@ namespace process{
 					std::copy_n(c_initialisers.begin(), numInitialisers, initialisers.begin());
 					std::copy_n(c_parameterNames.begin(), c_parameterNames.size(), parameterNames.begin());
 				}
-			patMem::noteList getNotesOnStep(volatile processStack* stack, patMem::position pos, const dataArray data) const volatile {
+			patMem::noteList getNotesOnStep( processStack* stack, patMem::position pos, const dataArray data) const  {
 				patMem::noteList notes = processFunc(stack, pos, data);
 				return notes;
 			}
@@ -75,7 +76,7 @@ namespace process{
 	
 	const extern processType processes[];
 	
-	// patMem::noteList getNotesOnStep(volatile processStack* stack, patMem::position pos, const dataArray data) const volatile {
+	// patMem::noteList getNotesOnStep( processStack* stack, patMem::position pos, const dataArray data) const  {
 		// return processFunc(stack, pos, data);
 	// }
 	
@@ -92,11 +93,11 @@ namespace process{
 				blocks::block_t(blocks::blockType::process)
 			{}
 			
-			process_t (const volatile process_t& other){address = other.getAddress();}
+			process_t (const  process_t& other){address = other.getAddress();}
 			
-			process_t (const volatile process_t&& other){address = other.getAddress();}
+			process_t (const  process_t&& other){address = other.getAddress();}
 			
-			process_t& operator = (const volatile process_t other){
+			process_t& operator = (const  process_t other){
 				address = other.getAddress();
 				return *this;
 			}
@@ -107,23 +108,23 @@ namespace process{
 				initialise(c_processID);
 			}
 			
-			volatile process_t& operator = (const volatile int processID) volatile {
+			 process_t& operator = (const  int processID)  {
 				block_t(blocks::blockType::process);
 				initialise(processID);
 				return *this;
 			}
 				
-			void initialise(const int ID) volatile;
-			int getProcessID() const volatile;
-			dataArray getParams() const volatile;
-			//void writeParams(const dataArray data) volatile;
-			patMem::noteList getNotesOnStep(volatile processStack* stack, patMem::position pos, const dataArray data) volatile;
+			void initialise(const int ID) ;
+			int getProcessID() const ;
+			dataArray getParams() const ;
+			//void writeParams(const dataArray data) ;
+			patMem::noteList getNotesOnStep( processStack* stack, patMem::position pos, const dataArray data) ;
 	};
 
 class processStack {
-		volatile process_t processList[Sequencing::processesPerTrack];
-		volatile int numberOfProcesses = 0; 
-		volatile int position = 0; //Position for going along the stack
+		 process_t processList[Sequencing::processesPerTrack];
+		 int numberOfProcesses = 0; 
+		 int position = 0; //Position for going along the stack
 		const int trackNum = 0;
 		static int trackEnumerator;
 		//const Sequencing::track* parentTrack;
@@ -131,131 +132,19 @@ class processStack {
 		processStack() : trackNum(trackEnumerator){
 			trackEnumerator++;
 		}
-		volatile process_t getLastStage() volatile;
-		volatile process_t getThisStage() volatile const;
-		volatile Sequencing::track& getTrack() volatile;
-		void removeProcess(const int p) volatile;
-		void addProcess(const int p, const int index) volatile;
-		void reorderProcesses(const int first, const int second) volatile;
-		void decrementPosition() volatile;
-		patMem::noteList getNotesOnStep(patMem::position pos) volatile;
-		process_t getProcess(const int p) volatile;
-		int getNumProcesses() const volatile;
+		 process_t getLastStage() ;
+		 process_t getThisStage()  const;
+		 Sequencing::track& getTrack() ;
+		void removeProcess(const int p) ;
+		void addProcess(const int p, const int index) ;
+		void reorderProcesses(const int first, const int second) ;
+		void decrementPosition() ;
+		patMem::noteList getNotesOnStep(patMem::position pos) ;
+		process_t getProcess(const int p) ;
+		int getNumProcesses() const ;
 };
 
-int processStack::trackEnumerator = 0;
 
-//Process_t:
-
-void process_t::initialise(const int ID) volatile {
-	memcpy(
-		getPointer()+parameterOffset,
-		processes[ID].getInitialisers().data(),
-		processes[ID].getNumOfInitialisers()
-	);
-}
-
-int process_t::getProcessID() const volatile {
-	return *(getPointer()); //The first thing pointed to is the ID;
-}
-
-dataArray process_t::getParams() const volatile {
-	dataArray data{address};
-	return data;
-}
-// void process_t::writeParams(const dataArray data) volatile {
-	// for(int i=0; i<spaceForParameters; i++){
-		// *(getPointer()+parameterOffset) = data[i];
-	// }
-// }
-
-patMem::noteList process_t::getNotesOnStep(volatile processStack* stack, patMem::position pos, const dataArray data) volatile {
-	//stack->decrementPosition();
-	//lgc("process_t.getNotesOnStep");
-	lg(getProcessID());
-	return processes[getProcessID()].getNotesOnStep(stack, pos, data);
-}
-
-//processStack:
-volatile process_t processStack::getLastStage() volatile {
-	decrementPosition();
-	if(position == 0){
-		return processList[0]; //The none process always gets directly from the track
-	}
-	return processList[position];
-}
-
-volatile process_t processStack::getThisStage() volatile const {
-	if(position == 0){
-		return processList[0]; //The none process always gets directly from the track
-	}
-	return processList[position];
-}
-
-volatile Sequencing::track& processStack::getTrack() volatile {
-	return Sequencing::getTrack(trackNum);
-}
-
-void processStack::removeProcess(const int p) volatile {
-	if(!processList[p].isValid()){
-		notifications::noProcess.display();
-		return;
-	}
-	processList[p].destroy();
-	for(int i = p+1; i<Sequencing::processesPerTrack; i++){//Shift later processes forward:
-		typecopy(processList[i-1], processList[i]);
-	}
-	numberOfProcesses--;
-}
-
-void processStack::addProcess(const int p, const int processIndex) volatile {
-	if(numberOfProcesses >= Sequencing::processesPerTrack){
-		notifications::noProcessSpace.display();
-		return;
-	}
-	lg("ap1");
-	for(int i = Sequencing::processesPerTrack-1; i > p; i--){//Shift later processes back:
-	lg(i);
-		typecopy(processList[i], processList[i-1]);
-	}
-	lg("ap2");
-	volatile process_t newProcess = {processIndex};
-	lg("ap3");
-	typecopy(processList[p], newProcess);
-	lg("ap4");
-	numberOfProcesses++;
-	lg("ap5");
-}
-	
-
-void processStack::reorderProcesses(const int first, const int second) volatile {
-	const volatile process_t f = processList[first];
-	typecopy(processList[first], processList[second]);
-	typecopy(processList[second], f);
-}
-
-void processStack::decrementPosition() volatile {
-	position--;
-}
-
-patMem::noteList processStack::getNotesOnStep(patMem::position pos) volatile {
-	position = numberOfProcesses;
-	if(position == 0){
-		return processes[0].getNotesOnStep(this, pos, {0}); //Return the none pattern. Therefore, the data does not matter so use an arbitrary number
-	}
-	decrementPosition();
-	process_t firstProcess = processList[position];
-	return firstProcess.getNotesOnStep(this, pos, firstProcess.getParams());
-}
-
-process_t processStack::getProcess(const int p) volatile{
-	ASSERT(p >= 0 && p < Sequencing::processesPerTrack);
-	return processList[p];
-}
-
-int processStack::getNumProcesses() const volatile{
-	return numberOfProcesses;
-}
 
 } //end namespace
 #endif

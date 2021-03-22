@@ -106,7 +106,7 @@ mode editSteps = {"Edit Steps", modeType::creation, true, false, true, true, fal
 
 mode editPattern = {"Edit Pattern", modeType::creation, true, false, true, true, false, &list::editPatt, {},
 	[]{
-		draw::patternNameAndNumber();;
+		draw::patternNameAndNumber();
 	},
 	{
 		{k::step,	LEDfeedback::showActiveTrack	},
@@ -114,9 +114,7 @@ mode editPattern = {"Edit Pattern", modeType::creation, true, false, true, true,
 	{
 		{k::step,	b::press,	interface::editNotes::setEditTrack	},
 		{k::note,	b::press,	interface::all::jumpToListItem	},
-		//{k::note,	b::release,	[](int u){modes::reset();}	},
 		{k::data,	b::press,	list::performActionOnActiveListItem	},
-		//{k::data,	b::release,	[](int u){modes::reset();}	},
 		{k::vertical,	b::press,	interface::all::listMove	},
 	},
 	{}
@@ -170,7 +168,7 @@ mode quantise = {"Quantise", modeType::process, true, false, true, true, false, 
 	{}
 };
 
-mode cardView = {"Patterns on Card", modeType::admin, false, false, true, true, false, &list::cardPatts, {},
+mode cardView = {"Card Browser", modeType::admin, false, false, true, true, false, &list::cardFiles, {},
 	[]{
 		list::cardView.draw();
 	},
@@ -284,18 +282,20 @@ mode mute = {"Mute" , modeType::live, false, false, true, true, false, nullptr, 
 	},
 	{}
 };
-mode rename = {"Rename" , modeType::admin, false, false, true, true, true, nullptr,  {},
-	[]{
-		draw::keyboardButtons();
-		draw::patternName();
-	},
-	{
-	}, 
-	{
-		{k::step,	b::press,	interface::pattUtils::enterPatternName	},
-	},
-	{}
-};
+
+// mode rename = {"Rename" , modeType::admin, false, false, true, true, true, nullptr,  {},
+	// []{
+		// draw::keyboardButtons();
+		// draw::patternName();
+	// },
+	// {
+	// }, 
+	// {
+		// {k::step,	b::press,	interface::pattUtils::enterPatternName	},
+	// },
+	// {}
+// };
+
 // mode error = {"Error" , modeType::unlisted,  false, true, false, false, true, nullptr, {},
 	// []{
 	// },
@@ -335,6 +335,7 @@ mode themeEdit = {"Theme Edit" , modeType::admin, false, false, true, true, fals
 		interface::colour::updateValueFromTheme();
 		draw::editColours();
 		draw::editColoursVars();
+		// halt(); //for testing
 	}, 
 	{
 		//{k::step,	LEDfeedback::showColourInBinary	},
@@ -460,6 +461,20 @@ mode process = {"Process" , modeType::process, false, false, true, true, false, 
 	},
 	{}
 };
+mode editDataEvent = {"Data Events (CC)" , modeType::creation, true, false, true, true, false, &list::dataEvent, {}, 
+	[]{
+		draw::dataEventTimeLine();
+	},
+	{
+		
+	}, {
+		{k::step,	b::release,	interface::editNotes::setEditStep	},
+		{k::step,	b::hold,	interface::editNotes::setSubstepOrEnterBar	},
+		{k::note,	b::press,	interface::all::jumpToListItem	},
+		{k::data,	b::press,	interface::dataEdit::editParameterOrData	},
+	}, 
+	{}
+};
 // mode processSelection = {"Process Selection" , modeType::unlisted, false, true, true, true, false, nullptr, {}, //replace this just with a sort of dialog box
 	// []{
 		
@@ -484,7 +499,7 @@ mode process = {"Process" , modeType::process, false, false, true, true, false, 
 		// {k::data,	b::press,	interface::LFO::setNumerator	},
 	// }
 // };
-mode editCC	= {"editCC"	, modeType::creation, true, false, true, true, false, nullptr, {}, []{}, {}, {}, {}};
+
 mode chain	= {"chain"	, modeType::live, true, false, true, true, false, nullptr, {}, []{}, {}, {}, {}};
 mode sentinel	= {"sentinel"	, modeType::unlisted, true, false, true, true, false, nullptr, {}, []{}, {}, {}, {}};
 }//End namespace
@@ -494,4 +509,5 @@ mode sentinel	= {"sentinel"	, modeType::unlisted, true, false, true, true, false
 	c_enableChase, c_doNotReturn, c_clearScreen, c_labelled, c_allButtonsOverride,
 	list::listController* c_activeList, const std::function<void()> c_screenDisplayFunc, const std::vector<buttons::keySet::ks> heldFuncSetter
 	const std::vector<LEDParam> LEDs, const std::vector<buttonParam> buttons) :
+	//Encoder functions
 */
